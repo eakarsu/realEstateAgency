@@ -1,0 +1,830 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  password      String
+  firstName     String
+  lastName      String
+  phone         String?
+  role          UserRole       @default(CLIENT)
+  avatar        String?
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  activities    Activity[]     @relation("UserActivities")
+  agent         Agent?
+  favorites     Favorite[]
+  messages      Message[]
+  notifications Notification[]
+  savedSearches SavedSearch[]
+
+  @@map("users")
+}
+
+model Agent {
+  id                 String              @id @default(uuid())
+  userId             String              @unique
+  licenseNumber      String?
+  licenseExpiry      DateTime?
+  bio                String?
+  specializations    String[]
+  yearsExperience    Int                 @default(0)
+  commissionRate     Float               @default(0.03)
+  teamId             String?
+  isLeadAgent        Boolean             @default(false)
+  hireDate           DateTime            @default(now())
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  team               Team?               @relation(fields: [teamId], references: [id])
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  commissions        Commission[]
+  leads              Lead[]
+  openHouses         OpenHouse[]
+  performanceMetrics PerformanceMetric[]
+  properties         Property[]
+  showings           Showing[]
+  tasks              Task[]
+  trainingRecords    TrainingRecord[]
+  transactions       Transaction[]
+
+  @@map("agents")
+}
+
+model Team {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  leadAgentId String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  agents      Agent[]
+
+  @@map("teams")
+}
+
+model PerformanceMetric {
+  id              String   @id @default(uuid())
+  agentId         String
+  period          String
+  listingsSold    Int      @default(0)
+  listingsTaken   Int      @default(0)
+  totalVolume     Float    @default(0)
+  totalCommission Float    @default(0)
+  leadsConverted  Int      @default(0)
+  avgDaysOnMarket Float    @default(0)
+  clientRating    Float    @default(0)
+  createdAt       DateTime @default(now())
+  agent           Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@unique([agentId, period])
+  @@map("performance_metrics")
+}
+
+model TrainingRecord {
+  id             String         @id @default(uuid())
+  agentId        String
+  courseName     String
+  provider       String?
+  completedAt    DateTime?
+  expiresAt      DateTime?
+  certificateUrl String?
+  status         TrainingStatus @default(IN_PROGRESS)
+  createdAt      DateTime       @default(now())
+  agent          Agent          @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@map("training_records")
+}
+
+model Lead {
+  id              String        @id @default(uuid())
+  firstName       String
+  lastName        String
+  email           String
+  phone           String?
+  sourceId        String?
+  agentId         String?
+  status          LeadStatus    @default(NEW)
+  score           Int           @default(0)
+  budget          Float?
+  timeline        String?
+  propertyType    String?
+  preferredAreas  String[]
+  notes           String?
+  lastContactedAt DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  activities      Activity[]
+  agent           Agent?        @relation(fields: [agentId], references: [id])
+  source          LeadSource?   @relation(fields: [sourceId], references: [id])
+  showings        Showing[]
+  tags            TagOnLead[]
+  transactions    Transaction[]
+
+  @@map("leads")
+}
+
+model LeadSource {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  type        String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  leads       Lead[]
+
+  @@map("lead_sources")
+}
+
+model Activity {
+  id          String       @id @default(uuid())
+  leadId      String?
+  userId      String?
+  type        ActivityType
+  subject     String
+  description String?
+  outcome     String?
+  scheduledAt DateTime?
+  completedAt DateTime?
+  createdAt   DateTime     @default(now())
+  lead        Lead?        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  user        User?        @relation("UserActivities", fields: [userId], references: [id])
+
+  @@map("activities")
+}
+
+model Tag {
+  id         String          @id @default(uuid())
+  name       String          @unique
+  color      String          @default("#3B82F6")
+  createdAt  DateTime        @default(now())
+  leads      TagOnLead[]
+  properties TagOnProperty[]
+
+  @@map("tags")
+}
+
+model TagOnLead {
+  leadId     String
+  tagId      String
+  assignedAt DateTime @default(now())
+  lead       Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([leadId, tagId])
+  @@map("tags_on_leads")
+}
+
+model TagOnProperty {
+  propertyId String
+  tagId      String
+  assignedAt DateTime @default(now())
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([propertyId, tagId])
+  @@map("tags_on_properties")
+}
+
+model Property {
+  id             String           @id @default(uuid())
+  mlsNumber      String?          @unique
+  agentId        String?
+  status         PropertyStatus   @default(DRAFT)
+  type           PropertyType
+  title          String
+  description    String?
+  aiDescription  String?
+  address        String
+  city           String
+  state          String
+  zipCode        String
+  county         String?
+  latitude       Float?
+  longitude      Float?
+  price          Float
+  originalPrice  Float?
+  pricePerSqft   Float?
+  bedrooms       Int              @default(0)
+  bathrooms      Float            @default(0)
+  squareFeet     Int?
+  lotSize        Float?
+  yearBuilt      Int?
+  stories        Int              @default(1)
+  garage         Int              @default(0)
+  features       String[]
+  appliances     String[]
+  flooring       String[]
+  heating        String?
+  cooling        String?
+  hoaFee         Float?
+  taxAmount      Float?
+  taxYear        Int?
+  listedAt       DateTime?
+  soldAt         DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  favorites      Favorite[]
+  marketAnalyses MarketAnalysis[]
+  openHouses     OpenHouse[]
+  agent          Agent?           @relation(fields: [agentId], references: [id])
+  photos         PropertyPhoto[]
+  showings       Showing[]
+  tags           TagOnProperty[]
+  transactions   Transaction[]
+  virtualTours   VirtualTour[]
+
+  @@map("properties")
+}
+
+model PropertyPhoto {
+  id          String   @id @default(uuid())
+  propertyId  String
+  url         String
+  caption     String?
+  isPrimary   Boolean  @default(false)
+  order       Int      @default(0)
+  isEnhanced  Boolean  @default(false)
+  enhancedUrl String?
+  createdAt   DateTime @default(now())
+  property    Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@map("property_photos")
+}
+
+model VirtualTour {
+  id           String   @id @default(uuid())
+  propertyId   String
+  type         String
+  url          String
+  thumbnailUrl String?
+  createdAt    DateTime @default(now())
+  property     Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@map("virtual_tours")
+}
+
+model Showing {
+  id          String        @id @default(uuid())
+  propertyId  String
+  agentId     String?
+  leadId      String?
+  scheduledAt DateTime
+  duration    Int           @default(30)
+  status      ShowingStatus @default(SCHEDULED)
+  feedback    String?
+  rating      Int?
+  notes       String?
+  confirmedAt DateTime?
+  completedAt DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  agent       Agent?        @relation(fields: [agentId], references: [id])
+  lead        Lead?         @relation(fields: [leadId], references: [id])
+  property    Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@map("showings")
+}
+
+model Transaction {
+  id                String                @id @default(uuid())
+  propertyId        String
+  agentId           String
+  leadId            String?
+  type              TransactionType
+  status            TransactionStatus     @default(INITIATED)
+  salePrice         Float?
+  listPrice         Float
+  earnestMoney      Float?
+  closingDate       DateTime?
+  actualClosingDate DateTime?
+  contractDate      DateTime?
+  inspectionDate    DateTime?
+  appraisalDate     DateTime?
+  financingType     String?
+  lenderName        String?
+  buyerName         String?
+  buyerEmail        String?
+  buyerPhone        String?
+  sellerName        String?
+  sellerEmail       String?
+  sellerPhone       String?
+  notes             String?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  commissions       Commission[]
+  checklists        ComplianceChecklist[]
+  documents         Document[]
+  milestones        Milestone[]
+  tasks             Task[]
+  agent             Agent                 @relation(fields: [agentId], references: [id])
+  lead              Lead?                 @relation(fields: [leadId], references: [id])
+  property          Property              @relation(fields: [propertyId], references: [id])
+
+  @@map("transactions")
+}
+
+model Document {
+  id              String          @id @default(uuid())
+  transactionId   String
+  name            String
+  type            DocumentType
+  url             String
+  signatureStatus SignatureStatus @default(NOT_REQUIRED)
+  signedAt        DateTime?
+  expiresAt       DateTime?
+  notes           String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  transaction     Transaction     @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@map("documents")
+}
+
+model Milestone {
+  id            String      @id @default(uuid())
+  transactionId String
+  name          String
+  description   String?
+  dueDate       DateTime?
+  completedAt   DateTime?
+  order         Int         @default(0)
+  isRequired    Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@map("milestones")
+}
+
+model Task {
+  id            String       @id @default(uuid())
+  transactionId String?
+  agentId       String?
+  title         String
+  description   String?
+  dueDate       DateTime?
+  priority      TaskPriority @default(MEDIUM)
+  status        TaskStatus   @default(PENDING)
+  completedAt   DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  agent         Agent?       @relation(fields: [agentId], references: [id])
+  transaction   Transaction? @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@map("tasks")
+}
+
+model ComplianceChecklist {
+  id             String      @id @default(uuid())
+  transactionId  String
+  name           String
+  items          Json
+  completedItems Int         @default(0)
+  totalItems     Int         @default(0)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  transaction    Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@map("compliance_checklists")
+}
+
+model Commission {
+  id              String           @id @default(uuid())
+  transactionId   String
+  agentId         String
+  type            CommissionType
+  rate            Float
+  amount          Float
+  splitPercentage Float            @default(100)
+  splitAmount     Float
+  status          CommissionStatus @default(PENDING)
+  paidAt          DateTime?
+  notes           String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  agent           Agent            @relation(fields: [agentId], references: [id])
+  transaction     Transaction      @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@map("commissions")
+}
+
+model Campaign {
+  id             String         @id @default(uuid())
+  name           String
+  type           CampaignType
+  status         CampaignStatus @default(DRAFT)
+  subject        String?
+  content        String?
+  htmlContent    String?
+  targetAudience Json?
+  scheduledAt    DateTime?
+  sentAt         DateTime?
+  stats          Json?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  emailDrips     EmailDrip[]
+
+  @@map("campaigns")
+}
+
+model EmailDrip {
+  id          String    @id @default(uuid())
+  campaignId  String?
+  name        String
+  triggerType String
+  delayDays   Int       @default(0)
+  subject     String
+  content     String
+  htmlContent String?
+  isActive    Boolean   @default(true)
+  order       Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  campaign    Campaign? @relation(fields: [campaignId], references: [id])
+
+  @@map("email_drips")
+}
+
+model SocialPost {
+  id             String         @id @default(uuid())
+  platform       SocialPlatform
+  propertyId     String?
+  content        String
+  mediaUrls      String[]
+  hashtags       String[]
+  status         PostStatus     @default(DRAFT)
+  scheduledAt    DateTime?
+  publishedAt    DateTime?
+  engagement     Json?
+  externalPostId String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@map("social_posts")
+}
+
+model OpenHouse {
+  id         String          @id @default(uuid())
+  propertyId String
+  agentId    String
+  date       DateTime
+  startTime  String
+  endTime    String
+  notes      String?
+  attendees  Json?
+  status     OpenHouseStatus @default(SCHEDULED)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+  agent      Agent           @relation(fields: [agentId], references: [id])
+  property   Property        @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@map("open_houses")
+}
+
+model Flyer {
+  id           String    @id @default(uuid())
+  propertyId   String?
+  templateId   String?
+  name         String
+  type         FlyerType
+  content      Json
+  pdfUrl       String?
+  thumbnailUrl String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@map("flyers")
+}
+
+model MarketReport {
+  id         String   @id @default(uuid())
+  title      String
+  area       String
+  reportDate DateTime @default(now())
+  data       Json
+  analysis   String?
+  pdfUrl     String?
+  createdAt  DateTime @default(now())
+
+  @@map("market_reports")
+}
+
+model SavedSearch {
+  id             String         @id @default(uuid())
+  userId         String
+  name           String
+  criteria       Json
+  alertFrequency AlertFrequency @default(DAILY)
+  isActive       Boolean        @default(true)
+  lastAlertAt    DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("saved_searches")
+}
+
+model Favorite {
+  id         String   @id @default(uuid())
+  userId     String
+  propertyId String
+  notes      String?
+  createdAt  DateTime @default(now())
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, propertyId])
+  @@map("favorites")
+}
+
+model Message {
+  id         String    @id @default(uuid())
+  userId     String
+  fromSystem Boolean   @default(false)
+  subject    String?
+  content    String
+  isRead     Boolean   @default(false)
+  readAt     DateTime?
+  createdAt  DateTime  @default(now())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+model Notification {
+  id        String    @id @default(uuid())
+  userId    String
+  type      String
+  title     String
+  message   String
+  data      Json?
+  isRead    Boolean   @default(false)
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model MarketAnalysis {
+  id              String    @id @default(uuid())
+  propertyId      String?
+  address         String
+  analysisType    String
+  comparables     Json?
+  adjustments     Json?
+  estimatedValue  Float?
+  confidenceLevel Float?
+  analysis        String?
+  createdAt       DateTime  @default(now())
+  property        Property? @relation(fields: [propertyId], references: [id])
+
+  @@map("market_analyses")
+}
+
+model AIConversation {
+  id                String   @id @default(uuid())
+  sessionId         String
+  type              String
+  visitorName       String?
+  visitorEmail      String?
+  visitorPhone      String?
+  messages          Json
+  summary           String?
+  leadScore         Int?
+  qualificationData Json?
+  status            String   @default("active")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("ai_conversations")
+}
+
+model AIGeneratedContent {
+  id          String   @id @default(uuid())
+  type        String
+  referenceId String?
+  prompt      String?
+  content     String
+  isApproved  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@map("ai_generated_content")
+}
+
+model Integration {
+  id         String    @id @default(uuid())
+  name       String
+  type       String
+  provider   String
+  config     Json?
+  isActive   Boolean   @default(false)
+  lastSyncAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@map("integrations")
+}
+
+model WebhookLog {
+  id        String   @id @default(uuid())
+  source    String
+  event     String
+  payload   Json
+  processed Boolean  @default(false)
+  error     String?
+  createdAt DateTime @default(now())
+
+  @@map("webhook_logs")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  AGENT
+  CLIENT
+}
+
+enum TrainingStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  EXPIRED
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  NURTURING
+  SHOWING
+  NEGOTIATING
+  CLOSED_WON
+  CLOSED_LOST
+}
+
+enum ActivityType {
+  CALL
+  EMAIL
+  MEETING
+  NOTE
+  TASK
+  SHOWING
+  OPEN_HOUSE
+  FOLLOW_UP
+}
+
+enum PropertyStatus {
+  DRAFT
+  ACTIVE
+  PENDING
+  SOLD
+  WITHDRAWN
+  EXPIRED
+  OFF_MARKET
+}
+
+enum PropertyType {
+  SINGLE_FAMILY
+  CONDO
+  TOWNHOUSE
+  MULTI_FAMILY
+  LAND
+  COMMERCIAL
+  OTHER
+}
+
+enum ShowingStatus {
+  SCHEDULED
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum TransactionType {
+  LISTING
+  BUYER
+  DUAL
+  REFERRAL
+}
+
+enum TransactionStatus {
+  INITIATED
+  UNDER_CONTRACT
+  PENDING
+  CONTINGENT
+  CLEAR_TO_CLOSE
+  CLOSED
+  CANCELLED
+  EXPIRED
+}
+
+enum DocumentType {
+  CONTRACT
+  ADDENDUM
+  DISCLOSURE
+  INSPECTION
+  APPRAISAL
+  TITLE
+  CLOSING
+  OTHER
+}
+
+enum SignatureStatus {
+  NOT_REQUIRED
+  PENDING
+  PARTIALLY_SIGNED
+  COMPLETED
+  DECLINED
+  EXPIRED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum CommissionType {
+  LISTING
+  BUYER
+  REFERRAL
+  BONUS
+}
+
+enum CommissionStatus {
+  PENDING
+  APPROVED
+  PAID
+  CANCELLED
+}
+
+enum CampaignType {
+  EMAIL
+  SMS
+  SOCIAL
+  PRINT
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum SocialPlatform {
+  FACEBOOK
+  INSTAGRAM
+  TWITTER
+  LINKEDIN
+  TIKTOK
+}
+
+enum PostStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  FAILED
+}
+
+enum OpenHouseStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum FlyerType {
+  PROPERTY
+  OPEN_HOUSE
+  JUST_LISTED
+  JUST_SOLD
+  MARKET_UPDATE
+  AGENT
+}
+
+enum AlertFrequency {
+  INSTANT
+  DAILY
+  WEEKLY
+  NEVER
+}
