@@ -237,6 +237,43 @@ router.get('/upcoming/list', authenticateToken, async (req, res) => {
   }
 });
 
+// Bulk delete showings
+router.post('/bulk-delete', authenticateToken, requireRole('ADMIN', 'MANAGER'), async (req, res) => {
+  try {
+    const prisma = req.app.get('prisma');
+    const { ids } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'ids array is required' });
+    }
+    await prisma.showing.deleteMany({ where: { id: { in: ids } } });
+    res.json({ message: `${ids.length} showings deleted`, count: ids.length });
+  } catch (error) {
+    console.error('Bulk delete showings error:', error);
+    res.status(500).json({ error: 'Failed to bulk delete showings' });
+  }
+});
+
+// Bulk update showings
+router.post('/bulk-update', authenticateToken, requireRole('ADMIN', 'MANAGER'), async (req, res) => {
+  try {
+    const prisma = req.app.get('prisma');
+    const { ids, data } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'ids array is required' });
+    }
+    const allowedFields = ['status'];
+    const updateData = {};
+    for (const key of allowedFields) {
+      if (data[key] !== undefined) updateData[key] = data[key];
+    }
+    await prisma.showing.updateMany({ where: { id: { in: ids } }, data: updateData });
+    res.json({ message: `${ids.length} showings updated`, count: ids.length });
+  } catch (error) {
+    console.error('Bulk update showings error:', error);
+    res.status(500).json({ error: 'Failed to bulk update showings' });
+  }
+});
+
 // Add feedback to showing
 router.post('/:id/feedback', authenticateToken, async (req, res) => {
   try {

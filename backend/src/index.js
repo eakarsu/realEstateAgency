@@ -46,6 +46,7 @@ const marketReportRoutes = require('./routes/marketReports');
 const notificationRoutes = require('./routes/notifications');
 const integrationRoutes = require('./routes/integrations');
 const messageRoutes = require('./routes/messages');
+const exportRoutes = require('./routes/exports');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -72,6 +73,7 @@ app.use('/api/market-reports', marketReportRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/integrations', integrationRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/exports', exportRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

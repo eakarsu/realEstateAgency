@@ -23,7 +23,8 @@ import {
   LinkIcon,
   EnvelopeIcon,
   DocumentIcon,
-  SparklesIcon
+  SparklesIcon,
+  ChevronDownIcon
 } from '@heroicons/react/24/outline';
 
 const navigation = [
@@ -141,7 +142,7 @@ export default function DashboardLayout() {
     return (
       <Link
         to={item.href}
-        className={`sidebar-link ${isActive ? 'active' : ''}`}
+        className={`sidebar-link min-h-[44px] ${isActive ? 'active' : ''}`}
         onClick={() => setSidebarOpen(false)}
       >
         <item.icon className="h-5 w-5" />
@@ -150,16 +151,35 @@ export default function DashboardLayout() {
     );
   };
 
-  const NavSection = ({ title, items }) => (
-    <div className="mb-4">
-      <h3 className="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{title}</h3>
-      <nav className="space-y-1">
-        {items.map((item) => (
-          <NavLink key={item.name} item={item} />
-        ))}
-      </nav>
-    </div>
-  );
+  const NavSection = ({ title, items }) => {
+    const [isExpanded, setIsExpanded] = useState(true);
+
+    return (
+      <div className="mb-4">
+        <h3 className="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 flex items-center justify-between">
+          <span>{title}</span>
+          <button
+            type="button"
+            className="lg:hidden cursor-pointer p-1"
+            onClick={() => setIsExpanded(!isExpanded)}
+            aria-label={isExpanded ? `Collapse ${title}` : `Expand ${title}`}
+          >
+            <ChevronDownIcon
+              className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${
+                isExpanded ? '' : 'rotate-180'
+              }`}
+            />
+          </button>
+        </h3>
+        {/* Always visible on desktop (lg:block), toggled on mobile */}
+        <nav className={`space-y-1 ${isExpanded ? 'block' : 'hidden lg:block'}`}>
+          {items.map((item) => (
+            <NavLink key={item.name} item={item} />
+          ))}
+        </nav>
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">

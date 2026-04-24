@@ -2,6 +2,12 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { campaignsAPI } from '../../services/api';
 import toast from 'react-hot-toast';
+import { validateForm, validators } from '../../utils/validation';
+
+const validationSchema = {
+  name: ['required'],
+  type: ['required']
+};
 
 export default function CampaignForm() {
   const { id } = useParams();
@@ -9,14 +15,29 @@ export default function CampaignForm() {
   const isEdit = !!id;
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
   const [formData, setFormData] = useState({ name: '', type: 'EMAIL', subject: '', content: '', scheduledAt: '' });
 
   useEffect(() => {
     if (isEdit) campaignsAPI.getById(id).then(res => { setFormData({ name: res.data.name, type: res.data.type, subject: res.data.subject || '', content: res.data.content || '', scheduledAt: res.data.scheduledAt?.split('T')[0] || '' }); setLoading(false); }).catch(() => navigate('/campaigns'));
   }, [id]);
 
+  const handleBlur = (field) => {
+    setTouched(prev => ({ ...prev, [field]: true }));
+    setErrors(validateForm(formData, validationSchema));
+  };
+
   const handleSubmit = async (e) => {
-    e.preventDefault(); setSaving(true);
+    e.preventDefault();
+
+    const validationErrors = validateForm(formData, validationSchema);
+    setErrors(validationErrors);
+    setTouched({ name: true, type: true });
+
+    if (Object.keys(validationErrors).length > 0) return;
+
+    setSaving(true);
     try {
       if (isEdit) await campaignsAPI.update(id, formData);
       else await campaignsAPI.create(formData);
@@ -33,8 +54,10 @@ export default function CampaignForm() {
       <Link to="/campaigns" className="text-blue-600 hover:underline text-sm">&larr; Back</Link>
       <h1 className="text-2xl font-bold text-gray-900 mt-2 mb-6">{isEdit ? 'Edit Campaign' : 'New Campaign'}</h1>
       <form onSubmit={handleSubmit} className="card p-6 space-y-4">
-        <div><label className="block text-sm font-medium text-gray-700 mb-1">Name *</label><input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="input" required /></div>
-        <div><label className="block text-sm font-medium text-gray-700 mb-1">Type</label><select value={formData.type} onChange={(e) => setFormData({ ...formData, type: e.target.value })} className="select"><option value="EMAIL">Email</option><option value="SMS">SMS</option></select></div>
+        <div><label className="block text-sm font-medium text-gray-700 mb-1">Name *</label><input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} onBlur={() => handleBlur('name')} className={`input ${touched.name && errors.name ? 'border-red-300 focus:ring-red-500' : ''}`} required />
+          {touched.name && errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}</div>
+        <div><label className="block text-sm font-medium text-gray-700 mb-1">Type *</label><select value={formData.type} onChange={(e) => setFormData({ ...formData, type: e.target.value })} onBlur={() => handleBlur('type')} className={`select ${touched.type && errors.type ? 'border-red-300 focus:ring-red-500' : ''}`}><option value="EMAIL">Email</option><option value="SMS">SMS</option></select>
+          {touched.type && errors.type && <p className="mt-1 text-sm text-red-600">{errors.type}</p>}</div>
         <div><label className="block text-sm font-medium text-gray-700 mb-1">Subject</label><input type="text" value={formData.subject} onChange={(e) => setFormData({ ...formData, subject: e.target.value })} className="input" /></div>
         <div><label className="block text-sm font-medium text-gray-700 mb-1">Content</label><textarea value={formData.content} onChange={(e) => setFormData({ ...formData, content: e.target.value })} className="input" rows={6} /></div>
         <div><label className="block text-sm font-medium text-gray-700 mb-1">Schedule</label><input type="date" value={formData.scheduledAt} onChange={(e) => setFormData({ ...formData, scheduledAt: e.target.value })} className="input" /></div>

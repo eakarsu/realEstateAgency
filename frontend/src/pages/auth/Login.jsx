@@ -3,16 +3,38 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import { BuildingOfficeIcon } from '@heroicons/react/24/outline';
+import { validateForm, validators } from '../../utils/validation';
+
+const validationSchema = {
+  email: ['required', 'email'],
+  password: ['required', validators.minLength(6)]
+};
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
   const { login } = useAuth();
   const navigate = useNavigate();
 
+  const handleBlur = (field) => {
+    setTouched(prev => ({ ...prev, [field]: true }));
+    const formData = { email, password };
+    setErrors(validateForm(formData, validationSchema));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    const formData = { email, password };
+    const validationErrors = validateForm(formData, validationSchema);
+    setErrors(validationErrors);
+    setTouched({ email: true, password: true });
+
+    if (Object.keys(validationErrors).length > 0) return;
+
     setLoading(true);
 
     try {
@@ -51,22 +73,29 @@ export default function Login() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="input"
+                onBlur={() => handleBlur('email')}
+                className={`input ${touched.email && errors.email ? 'border-red-300 focus:ring-red-500' : ''}`}
                 required
               />
+              {touched.email && errors.email && <p className="mt-1 text-sm text-red-600">{errors.email}</p>}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Password
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-sm font-medium text-gray-700">
+                  Password
+                </label>
+                <Link to="/forgot-password" className="text-sm text-blue-600 hover:underline">Forgot password?</Link>
+              </div>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="input"
+                onBlur={() => handleBlur('password')}
+                className={`input ${touched.password && errors.password ? 'border-red-300 focus:ring-red-500' : ''}`}
                 required
               />
+              {touched.password && errors.password && <p className="mt-1 text-sm text-red-600">{errors.password}</p>}
             </div>
 
             <button
@@ -89,13 +118,42 @@ export default function Login() {
         </div>
 
         <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-          <p className="text-sm text-blue-800 font-medium mb-2">Demo Accounts:</p>
-          <div className="text-xs text-blue-700 space-y-1">
-            <p>Admin: admin@realestate.com / password123</p>
-            <p>Manager: manager@realestate.com / password123</p>
-            <p>Agent: john@realestate.com / password123</p>
-            <p>Client: client@example.com / password123</p>
+          <p className="text-sm text-blue-800 font-medium mb-3">Demo Accounts (Click to auto-fill):</p>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => { setEmail('admin@realestate.com'); setPassword('password123'); }}
+              className="text-left px-3 py-2 bg-white rounded-lg border border-blue-200 hover:border-blue-400 hover:bg-blue-50 transition-all"
+            >
+              <span className="block text-xs font-semibold text-blue-800">Admin</span>
+              <span className="block text-xs text-blue-600 truncate">admin@realestate.com</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setEmail('manager@realestate.com'); setPassword('password123'); }}
+              className="text-left px-3 py-2 bg-white rounded-lg border border-blue-200 hover:border-blue-400 hover:bg-blue-50 transition-all"
+            >
+              <span className="block text-xs font-semibold text-blue-800">Manager</span>
+              <span className="block text-xs text-blue-600 truncate">manager@realestate.com</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setEmail('john@realestate.com'); setPassword('password123'); }}
+              className="text-left px-3 py-2 bg-white rounded-lg border border-blue-200 hover:border-blue-400 hover:bg-blue-50 transition-all"
+            >
+              <span className="block text-xs font-semibold text-blue-800">Agent</span>
+              <span className="block text-xs text-blue-600 truncate">john@realestate.com</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setEmail('client@example.com'); setPassword('password123'); }}
+              className="text-left px-3 py-2 bg-white rounded-lg border border-blue-200 hover:border-blue-400 hover:bg-blue-50 transition-all"
+            >
+              <span className="block text-xs font-semibold text-blue-800">Client</span>
+              <span className="block text-xs text-blue-600 truncate">client@example.com</span>
+            </button>
           </div>
+          <p className="text-xs text-blue-600 mt-2 text-center">Password: password123</p>
         </div>
       </div>
     </div>

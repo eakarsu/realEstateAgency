@@ -92,14 +92,11 @@ if [ -f ".env" ]; then
     echo "DATABASE_URL=\"${DATABASE_URL}\"" >> .env
   fi
 else
-  cat > .env << EOF
-DATABASE_URL="${DATABASE_URL}"
-JWT_SECRET="your-super-secret-jwt-key-change-in-production"
-PORT=${BACKEND_PORT}
-NODE_ENV=development
-OPENROUTER_API_KEY="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"
-OPENROUTER_MODEL="anthropic/claude-3-haiku"
-EOF
+  echo "ERROR: backend/.env not found."
+  echo "Please create backend/.env with the required variables:"
+  echo "  DATABASE_URL, JWT_SECRET, PORT, NODE_ENV, OPENROUTER_API_KEY, OPENROUTER_MODEL"
+  echo "See backend/.env.example if available."
+  exit 1
 fi
 echo ".env file updated."
 

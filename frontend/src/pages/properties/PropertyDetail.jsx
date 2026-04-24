@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { propertiesAPI, aiAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import AIResponseModal from '../../components/AIResponseModal';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { PencilIcon, TrashIcon, SparklesIcon, MapPinIcon, HeartIcon, CurrencyDollarIcon, ChartBarIcon } from '@heroicons/react/24/outline';
 
 export default function PropertyDetail() {
@@ -14,6 +15,7 @@ export default function PropertyDetail() {
   const [pricePredicting, setPricePredicting] = useState(false);
   const [cmaGenerating, setCmaGenerating] = useState(false);
   const [aiModal, setAiModal] = useState({ isOpen: false, data: null, type: 'property-description' });
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     loadProperty();
@@ -88,14 +90,19 @@ export default function PropertyDetail() {
     }
   };
 
-  const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this property?')) return;
+  const handleDelete = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmedDelete = async () => {
     try {
       await propertiesAPI.delete(id);
       toast.success('Property deleted');
       navigate('/properties');
     } catch (error) {
       toast.error('Failed to delete property');
+    } finally {
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -300,6 +307,15 @@ export default function PropertyDetail() {
         }
         data={aiModal.data}
         type={aiModal.type}
+      />
+
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleConfirmedDelete}
+        title="Confirm Delete"
+        message="Are you sure you want to delete this property?"
+        variant="danger"
       />
     </div>
   );

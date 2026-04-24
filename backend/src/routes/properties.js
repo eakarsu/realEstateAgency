@@ -4,6 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { authenticateToken, requireRole, optionalAuth } = require('../middleware/auth');
+const { filterFields } = require('../middleware/fieldFilter');
 
 // Configure multer for image uploads
 const storage = multer.diskStorage({
@@ -36,7 +37,7 @@ const upload = multer({
 });
 
 // Get all properties (public with filters)
-router.get('/', optionalAuth, async (req, res) => {
+router.get('/', optionalAuth, filterFields('property'), async (req, res) => {
   try {
     const prisma = req.app.get('prisma');
     const {
@@ -116,7 +117,7 @@ router.get('/', optionalAuth, async (req, res) => {
 });
 
 // Get property by ID
-router.get('/:id', optionalAuth, async (req, res) => {
+router.get('/:id', optionalAuth, filterFields('property'), async (req, res) => {
   try {
     const prisma = req.app.get('prisma');
     const property = await prisma.property.findUnique({
@@ -422,6 +423,55 @@ router.post('/:id/virtual-tours', authenticateToken, requireRole('ADMIN', 'MANAG
   } catch (error) {
     console.error('Add virtual tour error:', error);
     res.status(500).json({ error: 'Failed to add virtual tour' });
+  }
+});
+
+// Bulk delete properties
+router.post('/bulk-delete', authenticateToken, requireRole('ADMIN', 'MANAGER'), async (req, res) => {
+  try {
+    const prisma = req.app.get('prisma');
+    const { ids } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'ids array is required' });
+    }
+    for (const id of ids) {
+      await prisma.$transaction([
+        prisma.propertyPhoto.deleteMany({ where: { propertyId: id } }),
+        prisma.virtualTour.deleteMany({ where: { propertyId: id } }),
+        prisma.tagOnProperty.deleteMany({ where: { propertyId: id } }),
+        prisma.favorite.deleteMany({ where: { propertyId: id } }),
+        prisma.showing.deleteMany({ where: { propertyId: id } }),
+        prisma.openHouse.deleteMany({ where: { propertyId: id } }),
+        prisma.socialPost.deleteMany({ where: { propertyId: id } }),
+        prisma.flyer.deleteMany({ where: { propertyId: id } }),
+        prisma.property.delete({ where: { id } })
+      ]);
+    }
+    res.json({ message: `${ids.length} properties deleted`, count: ids.length });
+  } catch (error) {
+    console.error('Bulk delete properties error:', error);
+    res.status(500).json({ error: 'Failed to bulk delete properties' });
+  }
+});
+
+// Bulk update properties
+router.post('/bulk-update', authenticateToken, requireRole('ADMIN', 'MANAGER'), async (req, res) => {
+  try {
+    const prisma = req.app.get('prisma');
+    const { ids, data } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'ids array is required' });
+    }
+    const allowedFields = ['status', 'agentId'];
+    const updateData = {};
+    for (const key of allowedFields) {
+      if (data[key] !== undefined) updateData[key] = data[key];
+    }
+    await prisma.property.updateMany({ where: { id: { in: ids } }, data: updateData });
+    res.json({ message: `${ids.length} properties updated`, count: ids.length });
+  } catch (error) {
+    console.error('Bulk update properties error:', error);
+    res.status(500).json({ error: 'Failed to bulk update properties' });
   }
 });
 

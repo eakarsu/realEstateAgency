@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { savedSearchesAPI } from '../../services/api';
 import toast from 'react-hot-toast';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { MagnifyingGlassIcon, TrashIcon, BellIcon, BellSlashIcon } from '@heroicons/react/24/outline';
 
 export default function SavedSearches() {
   const [searches, setSearches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
 
   useEffect(() => {
     savedSearchesAPI.getAll()
@@ -15,13 +17,23 @@ export default function SavedSearches() {
       .finally(() => setLoading(false));
   }, []);
 
-  const handleDelete = async (id) => {
-    if (!confirm('Delete this saved search?')) return;
-    try {
-      await savedSearchesAPI.delete(id);
-      setSearches(prev => prev.filter(s => s.id !== id));
-      toast.success('Search deleted');
-    } catch (error) { toast.error('Failed'); }
+  const handleDelete = (id) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Saved Search',
+      message: 'Are you sure you want to delete this saved search? This action cannot be undone.',
+      onConfirm: async () => {
+        try {
+          await savedSearchesAPI.delete(id);
+          setSearches(prev => prev.filter(s => s.id !== id));
+          toast.success('Search deleted');
+        } catch (error) {
+          toast.error('Failed');
+        } finally {
+          setConfirmDialog({ isOpen: false, title: '', message: '', onConfirm: null });
+        }
+      }
+    });
   };
 
   const handleToggleAlerts = async (id, currentState) => {
@@ -94,6 +106,16 @@ export default function SavedSearches() {
           <Link to="/portal/search" className="btn-primary">Search Properties</Link>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ isOpen: false, title: '', message: '', onConfirm: null })}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        variant="danger"
+        confirmText="Delete"
+      />
     </div>
   );
 }

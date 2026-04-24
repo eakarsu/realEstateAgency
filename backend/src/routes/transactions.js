@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const { authenticateToken, requireRole } = require('../middleware/auth');
+const { filterFields } = require('../middleware/fieldFilter');
 
 // Get all transactions
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', authenticateToken, filterFields('transaction'), async (req, res) => {
   try {
     const prisma = req.app.get('prisma');
     const { status, type, agentId, page = 1, limit = 20 } = req.query;
@@ -41,7 +42,7 @@ router.get('/', authenticateToken, async (req, res) => {
 });
 
 // Get transaction by ID
-router.get('/:id', authenticateToken, async (req, res) => {
+router.get('/:id', authenticateToken, filterFields('transaction'), async (req, res) => {
   try {
     const prisma = req.app.get('prisma');
     const transaction = await prisma.transaction.findUnique({
@@ -273,6 +274,52 @@ router.put('/:id/checklists/:checklistId', authenticateToken, async (req, res) =
   } catch (error) {
     console.error('Update checklist error:', error);
     res.status(500).json({ error: 'Failed to update checklist' });
+  }
+});
+
+// Bulk delete transactions
+router.post('/bulk-delete', authenticateToken, requireRole('ADMIN', 'MANAGER'), async (req, res) => {
+  try {
+    const prisma = req.app.get('prisma');
+    const { ids } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'ids array is required' });
+    }
+    for (const id of ids) {
+      await prisma.$transaction([
+        prisma.milestone.deleteMany({ where: { transactionId: id } }),
+        prisma.document.deleteMany({ where: { transactionId: id } }),
+        prisma.task.deleteMany({ where: { transactionId: id } }),
+        prisma.complianceChecklist.deleteMany({ where: { transactionId: id } }),
+        prisma.commission.deleteMany({ where: { transactionId: id } }),
+        prisma.transaction.delete({ where: { id } })
+      ]);
+    }
+    res.json({ message: `${ids.length} transactions deleted`, count: ids.length });
+  } catch (error) {
+    console.error('Bulk delete transactions error:', error);
+    res.status(500).json({ error: 'Failed to bulk delete transactions' });
+  }
+});
+
+// Bulk update transactions
+router.post('/bulk-update', authenticateToken, requireRole('ADMIN', 'MANAGER'), async (req, res) => {
+  try {
+    const prisma = req.app.get('prisma');
+    const { ids, data } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'ids array is required' });
+    }
+    const allowedFields = ['status'];
+    const updateData = {};
+    for (const key of allowedFields) {
+      if (data[key] !== undefined) updateData[key] = data[key];
+    }
+    await prisma.transaction.updateMany({ where: { id: { in: ids } }, data: updateData });
+    res.json({ message: `${ids.length} transactions updated`, count: ids.length });
+  } catch (error) {
+    console.error('Bulk update transactions error:', error);
+    res.status(500).json({ error: 'Failed to bulk update transactions' });
   }
 });
 

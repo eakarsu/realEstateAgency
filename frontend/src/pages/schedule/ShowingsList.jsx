@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { showingsAPI, propertiesAPI, leadsAPI, aiAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import AIResponseModal from '../../components/AIResponseModal';
+import SortableHeader from '../../components/common/SortableHeader';
+import BulkActionBar from '../../components/common/BulkActionBar';
+import useBulkSelect from '../../hooks/useBulkSelect';
 import { PlusIcon, CalendarIcon, SparklesIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 const statusColors = { SCHEDULED: 'badge-blue', CONFIRMED: 'badge-green', COMPLETED: 'badge-gray', CANCELLED: 'badge-red', NO_SHOW: 'badge-yellow' };
@@ -19,6 +22,10 @@ export default function ShowingsList() {
   const [aiSchedulerData, setAiSchedulerData] = useState({ propertyId: '', leadId: '' });
   const [aiScheduling, setAiScheduling] = useState(false);
   const [aiModal, setAiModal] = useState({ isOpen: false, data: null });
+  const [sortBy, setSortBy] = useState('scheduledAt');
+  const [sortOrder, setSortOrder] = useState('desc');
+
+  const { selectedIds, toggleOne, toggleAll, clearSelection, isSelected, isAllSelected, isIndeterminate, selectedCount } = useBulkSelect(showings);
 
   useEffect(() => { Promise.all([showingsAPI.getAll(), propertiesAPI.getAll({ status: 'ACTIVE' }), leadsAPI.getAll()]).then(([s, p, l]) => { setShowings(s.data.showings); setProperties(p.data.properties); setLeads(l.data.leads); }).finally(() => setLoading(false)); }, []);
 
@@ -60,6 +67,41 @@ export default function ShowingsList() {
     }
   };
 
+  const handleSort = (field) => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('asc');
+    }
+  };
+
+  const sortedShowings = [...showings].sort((a, b) => {
+    let aVal, bVal;
+    switch (sortBy) {
+      case 'property': aVal = a.property?.address || ''; bVal = b.property?.address || ''; break;
+      case 'scheduledAt': aVal = a.scheduledAt || ''; bVal = b.scheduledAt || ''; break;
+      case 'status': aVal = a.status || ''; bVal = b.status || ''; break;
+      default: aVal = ''; bVal = '';
+    }
+    if (aVal < bVal) return sortOrder === 'asc' ? -1 : 1;
+    if (aVal > bVal) return sortOrder === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const handleBulkDelete = async () => {
+    try {
+      await showingsAPI.bulkDelete(Array.from(selectedIds));
+      toast.success(`${selectedIds.size} showings deleted`);
+      clearSelection();
+      // reload showings
+      const res = await showingsAPI.getAll();
+      setShowings(res.data.showings);
+    } catch (error) {
+      toast.error('Failed to delete showings');
+    }
+  };
+
   if (loading) return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>;
 
   return (
@@ -92,10 +134,24 @@ export default function ShowingsList() {
       )}
       <div className="card overflow-hidden">
         <table className="table">
-          <thead><tr><th>Property</th><th>Client</th><th>Date/Time</th><th>Status</th><th>Actions</th></tr></thead>
+          <thead>
+            <tr>
+              <th className="px-6 py-3 bg-gray-50 w-12">
+                <input type="checkbox" checked={isAllSelected} ref={el => { if (el) el.indeterminate = isIndeterminate; }} onChange={toggleAll} className="rounded border-gray-300" />
+              </th>
+              <SortableHeader label="Property" field="property" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">Client</th>
+              <SortableHeader label="Date/Time" field="scheduledAt" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
+              <SortableHeader label="Status" field="status" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">Actions</th>
+            </tr>
+          </thead>
           <tbody className="divide-y divide-gray-200">
-            {showings.map((s) => (
+            {sortedShowings.map((s) => (
               <tr key={s.id} className="cursor-pointer hover:bg-gray-50" onClick={() => s.property?.id && navigate(`/properties/${s.property.id}`)}>
+                <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                  <input type="checkbox" checked={isSelected(s.id)} onChange={() => toggleOne(s.id)} className="rounded border-gray-300" />
+                </td>
                 <td><p className="font-medium">{s.property?.address}</p><p className="text-sm text-gray-500">{s.property?.city}</p></td>
                 <td onClick={(e) => { e.stopPropagation(); if(s.lead?.id) navigate(`/leads/${s.lead.id}`); }} className="cursor-pointer hover:text-blue-600">{s.lead ? `${s.lead.firstName} ${s.lead.lastName}` : '-'}</td>
                 <td>{new Date(s.scheduledAt).toLocaleString()}</td>
@@ -173,6 +229,8 @@ export default function ShowingsList() {
         data={aiModal.data}
         type="showing-scheduler"
       />
+
+      <BulkActionBar selectedCount={selectedCount} onDelete={handleBulkDelete} onClearSelection={clearSelection} entityName="showings" />
     </div>
   );
 }

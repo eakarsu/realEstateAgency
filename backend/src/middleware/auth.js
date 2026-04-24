@@ -12,6 +12,8 @@ const authenticateToken = (req, res, next) => {
     if (err) {
       return res.status(403).json({ error: 'Invalid or expired token' });
     }
+    // Ensure id is a string to match Prisma UUID schema
+    if (user.id != null) user.id = String(user.id);
     req.user = user;
     next();
   });
@@ -39,6 +41,7 @@ const optionalAuth = (req, res, next) => {
 
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
     if (!err) {
+      if (user.id != null) user.id = String(user.id);
       req.user = user;
     }
     next();

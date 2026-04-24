@@ -3,6 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { propertiesAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import { PlusIcon, MagnifyingGlassIcon, MapPinIcon } from '@heroicons/react/24/outline';
+import useBulkSelect from '../../hooks/useBulkSelect';
+import BulkActionBar from '../../components/common/BulkActionBar';
+import ExportButton from '../../components/common/ExportButton';
 
 const statusColors = {
   DRAFT: 'badge-gray',
@@ -25,16 +28,31 @@ export default function PropertiesList() {
     minPrice: '',
     maxPrice: ''
   });
+  const [sortBy, setSortBy] = useState('createdAt');
+  const [sortOrder, setSortOrder] = useState('desc');
   const [pagination, setPagination] = useState({ page: 1, limit: 12, total: 0 });
+
+  const {
+    selectedIds,
+    toggleOne,
+    toggleAll,
+    clearSelection,
+    isSelected,
+    isAllSelected,
+    isIndeterminate,
+    selectedCount
+  } = useBulkSelect(properties);
 
   useEffect(() => {
     loadProperties();
-  }, [filters, pagination.page]);
+  }, [filters, pagination.page, sortBy, sortOrder]);
 
   const loadProperties = async () => {
     try {
       const res = await propertiesAPI.getAll({
         ...filters,
+        sortBy,
+        sortOrder,
         page: pagination.page,
         limit: pagination.limit
       });
@@ -52,6 +70,24 @@ export default function PropertiesList() {
     setPagination(prev => ({ ...prev, page: 1 }));
   };
 
+  const handleSortChange = (value) => {
+    const [field, order] = value.split(':');
+    setSortBy(field);
+    setSortOrder(order);
+    setPagination(prev => ({ ...prev, page: 1 }));
+  };
+
+  const handleBulkDelete = async () => {
+    try {
+      await propertiesAPI.bulkDelete([...selectedIds]);
+      toast.success(`Deleted ${selectedCount} properties`);
+      clearSelection();
+      loadProperties();
+    } catch (error) {
+      toast.error('Failed to delete properties');
+    }
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -59,15 +95,18 @@ export default function PropertiesList() {
           <h1 className="text-2xl font-bold text-gray-900">Properties</h1>
           <p className="text-gray-600">Manage your property listings</p>
         </div>
-        <Link to="/properties/new" className="btn-primary flex items-center gap-2">
-          <PlusIcon className="h-5 w-5" />
-          Add Property
-        </Link>
+        <div className="flex items-center gap-2">
+          <ExportButton entity="properties" selectedIds={[...selectedIds]} />
+          <Link to="/properties/new" className="btn-primary flex items-center gap-2">
+            <PlusIcon className="h-5 w-5" />
+            Add Property
+          </Link>
+        </div>
       </div>
 
       {/* Filters */}
       <div className="card p-4 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
           <div className="relative md:col-span-2">
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
             <input
@@ -102,6 +141,15 @@ export default function PropertiesList() {
             <option value="LAND">Land</option>
             <option value="COMMERCIAL">Commercial</option>
           </select>
+          <select
+            value={`${sortBy}:${sortOrder}`}
+            onChange={(e) => handleSortChange(e.target.value)}
+            className="select"
+          >
+            <option value="createdAt:desc">Newest First</option>
+            <option value="price:asc">Price: Low to High</option>
+            <option value="price:desc">Price: High to Low</option>
+          </select>
           <div className="flex gap-2">
             <input
               type="number"
@@ -128,45 +176,76 @@ export default function PropertiesList() {
         </div>
       ) : properties.length > 0 ? (
         <>
+          {/* Select All */}
+          <div className="flex items-center gap-3 mb-4">
+            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isAllSelected}
+                ref={(el) => { if (el) el.indeterminate = isIndeterminate; }}
+                onChange={toggleAll}
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              Select All
+            </label>
+            {selectedCount > 0 && (
+              <span className="text-sm text-gray-500">({selectedCount} selected)</span>
+            )}
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {properties.map((property) => (
-              <Link
+              <div
                 key={property.id}
-                to={`/properties/${property.id}`}
-                className="card overflow-hidden hover:shadow-md transition-shadow"
+                className="card overflow-hidden hover:shadow-md transition-shadow relative"
               >
-                <div className="aspect-video bg-gray-200 relative">
-                  {property.photos?.[0]?.url ? (
-                    <img
-                      src={property.photos[0].url}
-                      alt={property.title}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-400">
-                      No Photo
-                    </div>
-                  )}
-                  <span className={`absolute top-2 right-2 badge ${statusColors[property.status]}`}>
-                    {property.status}
-                  </span>
+                {/* Bulk Select Checkbox */}
+                <div
+                  className="absolute top-2 left-2 z-10"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSelected(property.id)}
+                    onChange={() => toggleOne(property.id)}
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 bg-white shadow-sm cursor-pointer"
+                  />
                 </div>
-                <div className="p-4">
-                  <p className="text-xl font-bold text-gray-900">
-                    ${property.price?.toLocaleString()}
-                  </p>
-                  <p className="text-gray-600 font-medium mt-1 truncate">{property.title}</p>
-                  <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
-                    <MapPinIcon className="h-4 w-4" />
-                    {property.address}, {property.city}
-                  </p>
-                  <div className="flex gap-4 mt-3 text-sm text-gray-600">
-                    <span>{property.bedrooms} bed</span>
-                    <span>{property.bathrooms} bath</span>
-                    {property.squareFeet && <span>{property.squareFeet.toLocaleString()} sqft</span>}
+
+                <Link to={`/properties/${property.id}`}>
+                  <div className="aspect-video bg-gray-200 relative">
+                    {property.photos?.[0]?.url ? (
+                      <img
+                        src={property.photos[0].url}
+                        alt={property.title}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-400">
+                        No Photo
+                      </div>
+                    )}
+                    <span className={`absolute top-2 right-2 badge ${statusColors[property.status]}`}>
+                      {property.status}
+                    </span>
                   </div>
-                </div>
-              </Link>
+                  <div className="p-4">
+                    <p className="text-xl font-bold text-gray-900">
+                      ${property.price?.toLocaleString()}
+                    </p>
+                    <p className="text-gray-600 font-medium mt-1 truncate">{property.title}</p>
+                    <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
+                      <MapPinIcon className="h-4 w-4" />
+                      {property.address}, {property.city}
+                    </p>
+                    <div className="flex gap-4 mt-3 text-sm text-gray-600">
+                      <span>{property.bedrooms} bed</span>
+                      <span>{property.bathrooms} bath</span>
+                      {property.squareFeet && <span>{property.squareFeet.toLocaleString()} sqft</span>}
+                    </div>
+                  </div>
+                </Link>
+              </div>
             ))}
           </div>
 
@@ -200,6 +279,13 @@ export default function PropertiesList() {
           <Link to="/properties/new" className="btn-primary">Add your first property</Link>
         </div>
       )}
+
+      {/* Bulk Action Bar */}
+      <BulkActionBar
+        selectedCount={selectedCount}
+        onDelete={handleBulkDelete}
+        onClear={clearSelection}
+      />
     </div>
   );
 }

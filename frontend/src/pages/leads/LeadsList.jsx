@@ -10,6 +10,11 @@ import {
   PhoneIcon,
   EnvelopeIcon
 } from '@heroicons/react/24/outline';
+import SortableHeader from '../../components/common/SortableHeader';
+import useBulkSelect from '../../hooks/useBulkSelect';
+import BulkActionBar from '../../components/common/BulkActionBar';
+import ExportButton from '../../components/common/ExportButton';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 
 const statusColors = {
   NEW: 'badge-blue',
@@ -42,14 +47,26 @@ export default function LeadsList() {
     total: 0
   });
 
+  // Sort state
+  const [sortBy, setSortBy] = useState('createdAt');
+  const [sortOrder, setSortOrder] = useState('desc');
+
+  // Bulk select
+  const { selectedIds, toggleOne, toggleAll, clearSelection, isSelected, isAllSelected, isIndeterminate, selectedCount } = useBulkSelect(leads);
+
+  // Confirm dialog state for single delete
+  const [deleteId, setDeleteId] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
   useEffect(() => {
     loadData();
-  }, [filters, pagination.page]);
+  }, [filters, pagination.page, sortBy, sortOrder]);
 
   const loadData = async () => {
     try {
       const [leadsRes, sourcesRes, agentsRes, tagsRes] = await Promise.all([
-        leadsAPI.getAll({ ...filters, page: pagination.page, limit: pagination.limit }),
+        leadsAPI.getAll({ ...filters, page: pagination.page, limit: pagination.limit, sortBy, sortOrder }),
         leadSourcesAPI.getAll(),
         agentsAPI.getAll(),
         tagsAPI.getAll()
@@ -72,14 +89,43 @@ export default function LeadsList() {
     setPagination(prev => ({ ...prev, page: 1 }));
   };
 
+  const handleSort = (field) => {
+    if (sortBy === field) {
+      setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortBy(field);
+      setSortOrder('asc');
+    }
+  };
+
   const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete this lead?')) return;
+    setDeleteId(id);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
+    setDeleting(true);
     try {
-      await leadsAPI.delete(id);
+      await leadsAPI.delete(deleteId);
       toast.success('Lead deleted');
+      setShowDeleteConfirm(false);
+      setDeleteId(null);
       loadData();
     } catch (error) {
       toast.error('Failed to delete lead');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    try {
+      await leadsAPI.bulkDelete([...selectedIds]);
+      toast.success(`${selectedCount} lead${selectedCount !== 1 ? 's' : ''} deleted`);
+      clearSelection();
+      loadData();
+    } catch (error) {
+      toast.error('Failed to delete leads');
     }
   };
 
@@ -90,10 +136,13 @@ export default function LeadsList() {
           <h1 className="text-2xl font-bold text-gray-900">Leads</h1>
           <p className="text-gray-600">Manage your leads and contacts</p>
         </div>
-        <Link to="/leads/new" className="btn-primary flex items-center gap-2">
-          <PlusIcon className="h-5 w-5" />
-          Add Lead
-        </Link>
+        <div className="flex items-center gap-3">
+          <ExportButton entity="leads" selectedIds={[...selectedIds]} />
+          <Link to="/leads/new" className="btn-primary flex items-center gap-2">
+            <PlusIcon className="h-5 w-5" />
+            Add Lead
+          </Link>
+        </div>
       </div>
 
       {/* Filters */}
@@ -163,19 +212,36 @@ export default function LeadsList() {
               <table className="table">
                 <thead>
                   <tr>
-                    <th>Name</th>
+                    <th className="w-10">
+                      <input
+                        type="checkbox"
+                        checked={isAllSelected}
+                        ref={(el) => { if (el) el.indeterminate = isIndeterminate; }}
+                        onChange={() => toggleAll()}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </th>
+                    <SortableHeader label="Name" field="firstName" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
                     <th>Contact</th>
                     <th>Source</th>
-                    <th>Status</th>
-                    <th>Score</th>
+                    <SortableHeader label="Status" field="status" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
+                    <SortableHeader label="Score" field="score" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
                     <th>Agent</th>
-                    <th>Created</th>
+                    <SortableHeader label="Created" field="createdAt" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
                     <th></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {leads.map((lead) => (
                     <tr key={lead.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/leads/${lead.id}`)}>
+                      <td onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected(lead.id)}
+                          onChange={() => toggleOne(lead.id)}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                      </td>
                       <td>
                         <div>
                           <p className="font-medium">{lead.firstName} {lead.lastName}</p>
@@ -282,6 +348,21 @@ export default function LeadsList() {
           </div>
         )}
       </div>
+
+      {/* Bulk Action Bar */}
+      <BulkActionBar selectedCount={selectedCount} onDelete={handleBulkDelete} onClear={clearSelection} />
+
+      {/* Single Delete Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        onClose={() => { setShowDeleteConfirm(false); setDeleteId(null); }}
+        onConfirm={confirmDelete}
+        title="Delete Lead"
+        message="Are you sure you want to delete this lead? This action cannot be undone."
+        confirmText="Delete"
+        variant="danger"
+        loading={deleting}
+      />
     </div>
   );
 }

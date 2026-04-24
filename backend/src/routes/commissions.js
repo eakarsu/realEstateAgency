@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const { authenticateToken, requireRole } = require('../middleware/auth');
+const { filterFields } = require('../middleware/fieldFilter');
 
 // Get all commissions
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', authenticateToken, filterFields('commission'), async (req, res) => {
   try {
     const prisma = req.app.get('prisma');
     const { agentId, transactionId, status, type, page = 1, limit = 20 } = req.query;
@@ -40,7 +41,7 @@ router.get('/', authenticateToken, async (req, res) => {
 });
 
 // Get commission by ID
-router.get('/:id', authenticateToken, async (req, res) => {
+router.get('/:id', authenticateToken, filterFields('commission'), async (req, res) => {
   try {
     const prisma = req.app.get('prisma');
     const commission = await prisma.commission.findUnique({

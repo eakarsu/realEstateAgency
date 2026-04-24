@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const { authenticateToken, requireRole } = require('../middleware/auth');
+const { filterFields } = require('../middleware/fieldFilter');
 
 // Get all leads
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', authenticateToken, filterFields('lead'), async (req, res) => {
   try {
     const prisma = req.app.get('prisma');
     const { status, agentId, sourceId, search, page = 1, limit = 20, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
@@ -50,7 +51,7 @@ router.get('/', authenticateToken, async (req, res) => {
 });
 
 // Get lead by ID
-router.get('/:id', authenticateToken, async (req, res) => {
+router.get('/:id', authenticateToken, filterFields('lead'), async (req, res) => {
   try {
     const prisma = req.app.get('prisma');
     const lead = await prisma.lead.findUnique({
@@ -300,6 +301,43 @@ router.put('/:id/tags', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Update tags error:', error);
     res.status(500).json({ error: 'Failed to update tags' });
+  }
+});
+
+// Bulk delete leads
+router.post('/bulk-delete', authenticateToken, requireRole('ADMIN', 'MANAGER'), async (req, res) => {
+  try {
+    const prisma = req.app.get('prisma');
+    const { ids } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'ids array is required' });
+    }
+    await prisma.lead.deleteMany({ where: { id: { in: ids } } });
+    res.json({ message: `${ids.length} leads deleted`, count: ids.length });
+  } catch (error) {
+    console.error('Bulk delete leads error:', error);
+    res.status(500).json({ error: 'Failed to bulk delete leads' });
+  }
+});
+
+// Bulk update leads
+router.post('/bulk-update', authenticateToken, requireRole('ADMIN', 'MANAGER'), async (req, res) => {
+  try {
+    const prisma = req.app.get('prisma');
+    const { ids, data } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'ids array is required' });
+    }
+    const allowedFields = ['status', 'agentId', 'sourceId'];
+    const updateData = {};
+    for (const key of allowedFields) {
+      if (data[key] !== undefined) updateData[key] = data[key];
+    }
+    await prisma.lead.updateMany({ where: { id: { in: ids } }, data: updateData });
+    res.json({ message: `${ids.length} leads updated`, count: ids.length });
+  } catch (error) {
+    console.error('Bulk update leads error:', error);
+    res.status(500).json({ error: 'Failed to bulk update leads' });
   }
 });
 

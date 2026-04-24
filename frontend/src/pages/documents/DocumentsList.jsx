@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { documentsAPI, transactionsAPI } from '../../services/api';
 import toast from 'react-hot-toast';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 import {
   PlusIcon,
   DocumentIcon,
@@ -28,6 +29,7 @@ export default function DocumentsList() {
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const fileInputRef = useRef(null);
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
   const [formData, setFormData] = useState({
     name: '',
     type: 'CONTRACT',
@@ -156,15 +158,23 @@ export default function DocumentsList() {
     setShowForm(true);
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete this document?')) return;
-    try {
-      await documentsAPI.delete(id);
-      toast.success('Document deleted');
-      loadData();
-    } catch (error) {
-      toast.error('Failed to delete document');
-    }
+  const handleDelete = (id) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Document',
+      message: 'Are you sure you want to delete this document? This action cannot be undone.',
+      onConfirm: async () => {
+        try {
+          await documentsAPI.delete(id);
+          toast.success('Document deleted');
+          loadData();
+        } catch (error) {
+          toast.error('Failed to delete document');
+        } finally {
+          setConfirmDialog({ isOpen: false, title: '', message: '', onConfirm: null });
+        }
+      }
+    });
   };
 
   const handleSignatureUpdate = async (id, status) => {
@@ -408,7 +418,7 @@ export default function DocumentsList() {
       {/* Documents Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {documents.map((doc) => (
-          <div key={doc.id} className="card p-6 hover:shadow-md transition-shadow">
+          <div key={doc.id} className="card p-6 hover:shadow-md transition-shadow cursor-pointer" onClick={() => handleEdit(doc)}>
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-blue-100 rounded-lg">
@@ -432,7 +442,7 @@ export default function DocumentsList() {
               <p className="text-sm text-gray-600 mb-4 line-clamp-2">{doc.notes}</p>
             )}
 
-            <div className="flex items-center justify-between pt-4 border-t">
+            <div className="flex items-center justify-between pt-4 border-t" onClick={(e) => e.stopPropagation()}>
               <div className="flex gap-1">
                 <select
                   value={doc.signatureStatus}
@@ -471,6 +481,16 @@ export default function DocumentsList() {
           <p className="text-sm">Click "Add Document" to upload your first document</p>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ isOpen: false, title: '', message: '', onConfirm: null })}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        variant="danger"
+        confirmText="Delete"
+      />
     </div>
   );
 }

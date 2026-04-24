@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { leadsAPI, aiAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import AIResponseModal from '../../components/AIResponseModal';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 import {
   PhoneIcon,
   EnvelopeIcon,
@@ -42,6 +43,7 @@ export default function LeadDetail() {
   const [matcherLoading, setMatcherLoading] = useState(false);
   const [sequenceLoading, setSequenceLoading] = useState(false);
   const [aiModal, setAiModal] = useState({ isOpen: false, data: null, type: 'lead-qualify' });
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     loadLead();
@@ -113,14 +115,19 @@ export default function LeadDetail() {
     }
   };
 
-  const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this lead?')) return;
+  const handleDelete = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmedDelete = async () => {
     try {
       await leadsAPI.delete(id);
       toast.success('Lead deleted');
       navigate('/leads');
     } catch (error) {
       toast.error('Failed to delete lead');
+    } finally {
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -369,6 +376,15 @@ export default function LeadDetail() {
         }
         data={aiModal.data}
         type={aiModal.type}
+      />
+
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleConfirmedDelete}
+        title="Confirm Delete"
+        message="Are you sure you want to delete this lead?"
+        variant="danger"
       />
     </div>
   );

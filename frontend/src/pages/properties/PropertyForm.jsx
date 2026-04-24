@@ -4,8 +4,19 @@ import { propertiesAPI, agentsAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import { PhotoIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { validateForm, validators } from '../../utils/validation';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
+const validationSchema = {
+  title: ['required'],
+  address: ['required'],
+  city: ['required'],
+  state: ['required'],
+  zipCode: ['required'],
+  price: ['required', 'number']
+};
 
 export default function PropertyForm() {
   const { id } = useParams();
@@ -19,6 +30,9 @@ export default function PropertyForm() {
   const [existingPhotos, setExistingPhotos] = useState([]);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
+  const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
 
   const [formData, setFormData] = useState({
     title: '', type: 'SINGLE_FAMILY', status: 'DRAFT', address: '', city: '', state: '', zipCode: '',
@@ -77,21 +91,41 @@ export default function PropertyForm() {
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-  const removeExistingPhoto = async (photoId) => {
-    if (!confirm('Remove this photo?')) return;
-    try {
-      await propertiesAPI.deletePhoto(id, photoId);
-      setExistingPhotos(prev => prev.filter(p => p.id !== photoId));
-      toast.success('Photo removed');
-    } catch (error) {
-      toast.error('Failed to remove photo');
-    }
+  const removeExistingPhoto = (photoId) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Remove Photo',
+      message: 'Are you sure you want to remove this photo? This action cannot be undone.',
+      onConfirm: async () => {
+        try {
+          await propertiesAPI.deletePhoto(id, photoId);
+          setExistingPhotos(prev => prev.filter(p => p.id !== photoId));
+          toast.success('Photo removed');
+        } catch (error) {
+          toast.error('Failed to remove photo');
+        } finally {
+          setConfirmDialog({ isOpen: false, title: '', message: '', onConfirm: null });
+        }
+      }
+    });
   };
 
   const handleChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
 
+  const handleBlur = (field) => {
+    setTouched(prev => ({ ...prev, [field]: true }));
+    setErrors(validateForm(formData, validationSchema));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    const validationErrors = validateForm(formData, validationSchema);
+    setErrors(validationErrors);
+    setTouched({ title: true, address: true, city: true, state: true, zipCode: true, price: true });
+
+    if (Object.keys(validationErrors).length > 0) return;
+
     setSaving(true);
     try {
       const data = {
@@ -148,7 +182,8 @@ export default function PropertyForm() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
-            <input type="text" name="title" value={formData.title} onChange={handleChange} className="input" required />
+            <input type="text" name="title" value={formData.title} onChange={handleChange} onBlur={() => handleBlur('title')} className={`input ${touched.title && errors.title ? 'border-red-300 focus:ring-red-500' : ''}`} required />
+            {touched.title && errors.title && <p className="mt-1 text-sm text-red-600">{errors.title}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
@@ -186,15 +221,17 @@ export default function PropertyForm() {
           )}
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">Address *</label>
-            <input type="text" name="address" value={formData.address} onChange={handleChange} className="input" required />
+            <input type="text" name="address" value={formData.address} onChange={handleChange} onBlur={() => handleBlur('address')} className={`input ${touched.address && errors.address ? 'border-red-300 focus:ring-red-500' : ''}`} required />
+            {touched.address && errors.address && <p className="mt-1 text-sm text-red-600">{errors.address}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">City *</label>
-            <input type="text" name="city" value={formData.city} onChange={handleChange} className="input" required />
+            <input type="text" name="city" value={formData.city} onChange={handleChange} onBlur={() => handleBlur('city')} className={`input ${touched.city && errors.city ? 'border-red-300 focus:ring-red-500' : ''}`} required />
+            {touched.city && errors.city && <p className="mt-1 text-sm text-red-600">{errors.city}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">State *</label>
-            <select name="state" value={formData.state} onChange={handleChange} className="select" required>
+            <select name="state" value={formData.state} onChange={handleChange} onBlur={() => handleBlur('state')} className={`select ${touched.state && errors.state ? 'border-red-300 focus:ring-red-500' : ''}`} required>
               <option value="">Select state</option>
               <option value="AL">Alabama</option><option value="AK">Alaska</option><option value="AZ">Arizona</option>
               <option value="AR">Arkansas</option><option value="CA">California</option><option value="CO">Colorado</option>
@@ -214,14 +251,17 @@ export default function PropertyForm() {
               <option value="VA">Virginia</option><option value="WA">Washington</option><option value="WV">West Virginia</option>
               <option value="WI">Wisconsin</option><option value="WY">Wyoming</option><option value="DC">Washington DC</option>
             </select>
+            {touched.state && errors.state && <p className="mt-1 text-sm text-red-600">{errors.state}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Zip Code *</label>
-            <input type="text" name="zipCode" value={formData.zipCode} onChange={handleChange} className="input" required />
+            <input type="text" name="zipCode" value={formData.zipCode} onChange={handleChange} onBlur={() => handleBlur('zipCode')} className={`input ${touched.zipCode && errors.zipCode ? 'border-red-300 focus:ring-red-500' : ''}`} required />
+            {touched.zipCode && errors.zipCode && <p className="mt-1 text-sm text-red-600">{errors.zipCode}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Price *</label>
-            <input type="number" name="price" value={formData.price} onChange={handleChange} className="input" required />
+            <input type="number" name="price" value={formData.price} onChange={handleChange} onBlur={() => handleBlur('price')} className={`input ${touched.price && errors.price ? 'border-red-300 focus:ring-red-500' : ''}`} required />
+            {touched.price && errors.price && <p className="mt-1 text-sm text-red-600">{errors.price}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Bedrooms</label>
@@ -367,6 +407,16 @@ export default function PropertyForm() {
           <Link to="/properties" className="btn-secondary">Cancel</Link>
         </div>
       </form>
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ isOpen: false, title: '', message: '', onConfirm: null })}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        variant="danger"
+        confirmText="Remove"
+      />
     </div>
   );
 }

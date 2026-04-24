@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
+import ErrorBoundary from './components/common/ErrorBoundary';
 
 // Layouts
 import DashboardLayout from './components/layouts/DashboardLayout';
@@ -9,6 +10,8 @@ import PortalLayout from './components/layouts/PortalLayout';
 // Auth Pages
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
+import ForgotPassword from './pages/auth/ForgotPassword';
+import ResetPassword from './pages/auth/ResetPassword';
 
 // Dashboard Pages
 import Dashboard from './pages/dashboard/Dashboard';
@@ -94,11 +97,14 @@ function App() {
   const { user } = useAuth();
 
   return (
+    <ErrorBoundary>
     <Routes>
       {/* Public Routes */}
       <Route element={<PublicLayout />}>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
       </Route>
 
       {/* Dashboard Routes */}
@@ -185,6 +191,7 @@ function App() {
       {/* Catch all */}
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
+    </ErrorBoundary>
   );
 }
 

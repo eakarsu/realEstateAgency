@@ -3,6 +3,15 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { leadsAPI, leadSourcesAPI, agentsAPI, tagsAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
+import { validateForm, validators } from '../../utils/validation';
+
+const validationSchema = {
+  firstName: ['required'],
+  lastName: ['required'],
+  email: ['required', 'email'],
+  phone: ['phone'],
+  budget: ['number']
+};
 
 export default function LeadForm() {
   const { id } = useParams();
@@ -15,6 +24,8 @@ export default function LeadForm() {
   const [tags, setTags] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -78,6 +89,11 @@ export default function LeadForm() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleBlur = (field) => {
+    setTouched(prev => ({ ...prev, [field]: true }));
+    setErrors(validateForm(formData, validationSchema));
+  };
+
   const handleTagToggle = (tagId) => {
     setFormData(prev => ({
       ...prev,
@@ -89,6 +105,13 @@ export default function LeadForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    const validationErrors = validateForm(formData, validationSchema);
+    setErrors(validationErrors);
+    setTouched({ firstName: true, lastName: true, email: true, phone: true, budget: true });
+
+    if (Object.keys(validationErrors).length > 0) return;
+
     setSaving(true);
 
     try {
@@ -143,9 +166,11 @@ export default function LeadForm() {
               name="firstName"
               value={formData.firstName}
               onChange={handleChange}
-              className="input"
+              onBlur={() => handleBlur('firstName')}
+              className={`input ${touched.firstName && errors.firstName ? 'border-red-300 focus:ring-red-500' : ''}`}
               required
             />
+            {touched.firstName && errors.firstName && <p className="mt-1 text-sm text-red-600">{errors.firstName}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Last Name *</label>
@@ -154,9 +179,11 @@ export default function LeadForm() {
               name="lastName"
               value={formData.lastName}
               onChange={handleChange}
-              className="input"
+              onBlur={() => handleBlur('lastName')}
+              className={`input ${touched.lastName && errors.lastName ? 'border-red-300 focus:ring-red-500' : ''}`}
               required
             />
+            {touched.lastName && errors.lastName && <p className="mt-1 text-sm text-red-600">{errors.lastName}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
@@ -165,9 +192,11 @@ export default function LeadForm() {
               name="email"
               value={formData.email}
               onChange={handleChange}
-              className="input"
+              onBlur={() => handleBlur('email')}
+              className={`input ${touched.email && errors.email ? 'border-red-300 focus:ring-red-500' : ''}`}
               required
             />
+            {touched.email && errors.email && <p className="mt-1 text-sm text-red-600">{errors.email}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
@@ -176,8 +205,10 @@ export default function LeadForm() {
               name="phone"
               value={formData.phone}
               onChange={handleChange}
-              className="input"
+              onBlur={() => handleBlur('phone')}
+              className={`input ${touched.phone && errors.phone ? 'border-red-300 focus:ring-red-500' : ''}`}
             />
+            {touched.phone && errors.phone && <p className="mt-1 text-sm text-red-600">{errors.phone}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Source</label>
@@ -221,9 +252,11 @@ export default function LeadForm() {
               name="budget"
               value={formData.budget}
               onChange={handleChange}
-              className="input"
+              onBlur={() => handleBlur('budget')}
+              className={`input ${touched.budget && errors.budget ? 'border-red-300 focus:ring-red-500' : ''}`}
               placeholder="e.g., 500000"
             />
+            {touched.budget && errors.budget && <p className="mt-1 text-sm text-red-600">{errors.budget}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Timeline</label>

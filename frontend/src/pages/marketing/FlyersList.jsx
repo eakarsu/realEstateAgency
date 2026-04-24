@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { flyersAPI, propertiesAPI } from '../../services/api';
 import toast from 'react-hot-toast';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 import {
   PlusIcon,
   DocumentTextIcon,
@@ -20,6 +21,7 @@ export default function FlyersList() {
   const [generating, setGenerating] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [selectedFlyer, setSelectedFlyer] = useState(null);
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
   const [formData, setFormData] = useState({
     propertyId: '',
     type: 'JUST_LISTED'
@@ -68,15 +70,23 @@ export default function FlyersList() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete this flyer?')) return;
-    try {
-      await flyersAPI.delete(id);
-      toast.success('Flyer deleted');
-      loadData();
-    } catch (error) {
-      toast.error('Failed to delete flyer');
-    }
+  const handleDelete = (id) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Flyer',
+      message: 'Are you sure you want to delete this flyer? This action cannot be undone.',
+      onConfirm: async () => {
+        try {
+          await flyersAPI.delete(id);
+          toast.success('Flyer deleted');
+          loadData();
+        } catch (error) {
+          toast.error('Failed to delete flyer');
+        } finally {
+          setConfirmDialog({ isOpen: false, title: '', message: '', onConfirm: null });
+        }
+      }
+    });
   };
 
   const getTypeColor = (type) => {
@@ -290,6 +300,16 @@ export default function FlyersList() {
           <p>No flyers yet. Generate your first AI-powered flyer above.</p>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ isOpen: false, title: '', message: '', onConfirm: null })}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        variant="danger"
+        confirmText="Delete"
+      />
     </div>
   );
 }

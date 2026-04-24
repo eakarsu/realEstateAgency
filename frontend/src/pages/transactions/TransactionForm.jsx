@@ -2,6 +2,13 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { transactionsAPI, propertiesAPI } from '../../services/api';
 import toast from 'react-hot-toast';
+import { validateForm, validators } from '../../utils/validation';
+
+const validationSchema = {
+  propertyId: ['required'],
+  type: ['required'],
+  listPrice: ['required', 'number']
+};
 
 export default function TransactionForm() {
   const { id } = useParams();
@@ -10,6 +17,8 @@ export default function TransactionForm() {
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
   const [formData, setFormData] = useState({
     propertyId: '', type: 'BUYER', listPrice: '', closingDate: '', financingType: '',
     buyerName: '', buyerEmail: '', buyerPhone: '', sellerName: '', sellerEmail: '', sellerPhone: '', notes: ''
@@ -30,8 +39,20 @@ export default function TransactionForm() {
 
   const handleChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
 
+  const handleBlur = (field) => {
+    setTouched(prev => ({ ...prev, [field]: true }));
+    setErrors(validateForm(formData, validationSchema));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    const validationErrors = validateForm(formData, validationSchema);
+    setErrors(validationErrors);
+    setTouched({ propertyId: true, type: true, listPrice: true });
+
+    if (Object.keys(validationErrors).length > 0) return;
+
     setSaving(true);
     try {
       const data = { ...formData, listPrice: parseFloat(formData.listPrice) || 0, closingDate: formData.closingDate || null };
@@ -54,16 +75,19 @@ export default function TransactionForm() {
       <form onSubmit={handleSubmit} className="card p-6 space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div><label className="block text-sm font-medium text-gray-700 mb-1">Property *</label>
-            <select name="propertyId" value={formData.propertyId} onChange={handleChange} className="select" required>
+            <select name="propertyId" value={formData.propertyId} onChange={handleChange} onBlur={() => handleBlur('propertyId')} className={`select ${touched.propertyId && errors.propertyId ? 'border-red-300 focus:ring-red-500' : ''}`} required>
               <option value="">Select property</option>
               {properties.map(p => <option key={p.id} value={p.id}>{p.address}, {p.city}</option>)}
-            </select></div>
-          <div><label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-            <select name="type" value={formData.type} onChange={handleChange} className="select">
+            </select>
+            {touched.propertyId && errors.propertyId && <p className="mt-1 text-sm text-red-600">{errors.propertyId}</p>}</div>
+          <div><label className="block text-sm font-medium text-gray-700 mb-1">Type *</label>
+            <select name="type" value={formData.type} onChange={handleChange} onBlur={() => handleBlur('type')} className={`select ${touched.type && errors.type ? 'border-red-300 focus:ring-red-500' : ''}`}>
               <option value="BUYER">Buyer</option><option value="LISTING">Listing</option><option value="DUAL">Dual</option>
-            </select></div>
+            </select>
+            {touched.type && errors.type && <p className="mt-1 text-sm text-red-600">{errors.type}</p>}</div>
           <div><label className="block text-sm font-medium text-gray-700 mb-1">List Price *</label>
-            <input type="number" name="listPrice" value={formData.listPrice} onChange={handleChange} className="input" required /></div>
+            <input type="number" name="listPrice" value={formData.listPrice} onChange={handleChange} onBlur={() => handleBlur('listPrice')} className={`input ${touched.listPrice && errors.listPrice ? 'border-red-300 focus:ring-red-500' : ''}`} required />
+            {touched.listPrice && errors.listPrice && <p className="mt-1 text-sm text-red-600">{errors.listPrice}</p>}</div>
           <div><label className="block text-sm font-medium text-gray-700 mb-1">Target Closing Date</label>
             <input type="date" name="closingDate" value={formData.closingDate} onChange={handleChange} className="input" /></div>
           <div><label className="block text-sm font-medium text-gray-700 mb-1">Financing Type</label>

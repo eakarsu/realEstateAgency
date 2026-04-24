@@ -135,6 +135,43 @@ router.delete('/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// Bulk delete tasks
+router.post('/bulk-delete', authenticateToken, requireRole('ADMIN', 'MANAGER'), async (req, res) => {
+  try {
+    const prisma = req.app.get('prisma');
+    const { ids } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'ids array is required' });
+    }
+    await prisma.task.deleteMany({ where: { id: { in: ids } } });
+    res.json({ message: `${ids.length} tasks deleted`, count: ids.length });
+  } catch (error) {
+    console.error('Bulk delete tasks error:', error);
+    res.status(500).json({ error: 'Failed to bulk delete tasks' });
+  }
+});
+
+// Bulk update tasks
+router.post('/bulk-update', authenticateToken, requireRole('ADMIN', 'MANAGER'), async (req, res) => {
+  try {
+    const prisma = req.app.get('prisma');
+    const { ids, data } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'ids array is required' });
+    }
+    const allowedFields = ['status', 'priority', 'agentId'];
+    const updateData = {};
+    for (const key of allowedFields) {
+      if (data[key] !== undefined) updateData[key] = data[key];
+    }
+    await prisma.task.updateMany({ where: { id: { in: ids } }, data: updateData });
+    res.json({ message: `${ids.length} tasks updated`, count: ids.length });
+  } catch (error) {
+    console.error('Bulk update tasks error:', error);
+    res.status(500).json({ error: 'Failed to bulk update tasks' });
+  }
+});
+
 // Get overdue tasks
 router.get('/overdue/list', authenticateToken, async (req, res) => {
   try {

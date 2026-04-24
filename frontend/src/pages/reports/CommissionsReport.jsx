@@ -3,6 +3,8 @@ import { commissionsAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import { XMarkIcon, CurrencyDollarIcon, HomeIcon, UserIcon } from '@heroicons/react/24/outline';
+import SortableHeader from '../../components/common/SortableHeader';
+import ExportButton from '../../components/common/ExportButton';
 
 export default function CommissionsReport() {
   const { user } = useAuth();
@@ -10,6 +12,17 @@ export default function CommissionsReport() {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedCommission, setSelectedCommission] = useState(null);
+  const [sortBy, setSortBy] = useState('createdAt');
+  const [sortOrder, setSortOrder] = useState('desc');
+
+  const handleSort = (field) => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('asc');
+    }
+  };
 
   useEffect(() => {
     Promise.all([
@@ -18,11 +31,29 @@ export default function CommissionsReport() {
     ]).then(([c, s]) => { setCommissions(c.data.commissions); setSummary(s.data); }).catch(() => toast.error('Failed')).finally(() => setLoading(false));
   }, [user]);
 
+  const sortedCommissions = [...commissions].sort((a, b) => {
+    let aVal, bVal;
+    switch (sortBy) {
+      case 'amount': aVal = a.amount || 0; bVal = b.amount || 0; break;
+      case 'splitAmount': aVal = a.splitAmount || 0; bVal = b.splitAmount || 0; break;
+      case 'status': aVal = a.status || ''; bVal = b.status || ''; break;
+      case 'createdAt': aVal = a.createdAt || ''; bVal = b.createdAt || ''; break;
+      case 'type': aVal = a.type || ''; bVal = b.type || ''; break;
+      default: aVal = ''; bVal = '';
+    }
+    if (aVal < bVal) return sortOrder === 'asc' ? -1 : 1;
+    if (aVal > bVal) return sortOrder === 'asc' ? 1 : -1;
+    return 0;
+  });
+
   if (loading) return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>;
 
   return (
     <div>
-      <div className="mb-6"><h1 className="text-2xl font-bold text-gray-900">Commissions</h1><p className="text-gray-600">Track your earnings</p></div>
+      <div className="flex items-center justify-between mb-6">
+        <div><h1 className="text-2xl font-bold text-gray-900">Commissions</h1><p className="text-gray-600">Track your earnings</p></div>
+        <ExportButton entity="commissions" />
+      </div>
       {summary && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <div className="card p-6"><p className="text-sm text-gray-500">Pending</p><p className="text-2xl font-bold text-yellow-600">${(summary.pending?.amount || 0).toLocaleString()}</p><p className="text-xs text-gray-500">{summary.pending?.count || 0} transactions</p></div>
@@ -32,9 +63,18 @@ export default function CommissionsReport() {
       )}
       <div className="card overflow-hidden">
         <table className="table">
-          <thead><tr><th>Property</th><th>Type</th><th>Amount</th><th>Your Split</th><th>Status</th><th>Date</th></tr></thead>
+          <thead>
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50">Property</th>
+              <SortableHeader label="Type" field="type" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
+              <SortableHeader label="Amount" field="amount" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
+              <SortableHeader label="Your Split" field="splitAmount" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
+              <SortableHeader label="Status" field="status" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
+              <SortableHeader label="Date" field="createdAt" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
+            </tr>
+          </thead>
           <tbody className="divide-y">
-            {commissions.map((c) => (
+            {sortedCommissions.map((c) => (
               <tr key={c.id} className="cursor-pointer hover:bg-gray-50" onClick={() => setSelectedCommission(c)}>
                 <td><p className="font-medium">{c.transaction?.property?.address}</p><p className="text-sm text-gray-500">{c.transaction?.property?.city}</p></td>
                 <td>{c.type}</td>

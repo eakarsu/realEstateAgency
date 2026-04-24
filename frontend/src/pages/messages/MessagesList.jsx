@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { messagesAPI } from '../../services/api';
 import toast from 'react-hot-toast';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 import {
   EnvelopeIcon,
   EnvelopeOpenIcon,
@@ -13,6 +14,7 @@ export default function MessagesList() {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedMessage, setSelectedMessage] = useState(null);
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
 
   useEffect(() => {
     loadMessages();
@@ -38,18 +40,26 @@ export default function MessagesList() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete this message?')) return;
-    try {
-      await messagesAPI.delete(id);
-      toast.success('Message deleted');
-      if (selectedMessage?.id === id) {
-        setSelectedMessage(null);
+  const handleDelete = (id) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Message',
+      message: 'Are you sure you want to delete this message? This action cannot be undone.',
+      onConfirm: async () => {
+        try {
+          await messagesAPI.delete(id);
+          toast.success('Message deleted');
+          if (selectedMessage?.id === id) {
+            setSelectedMessage(null);
+          }
+          loadMessages();
+        } catch (error) {
+          toast.error('Failed to delete message');
+        } finally {
+          setConfirmDialog({ isOpen: false, title: '', message: '', onConfirm: null });
+        }
       }
-      loadMessages();
-    } catch (error) {
-      toast.error('Failed to delete message');
-    }
+    });
   };
 
   const openMessage = async (message) => {
@@ -187,6 +197,16 @@ export default function MessagesList() {
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ isOpen: false, title: '', message: '', onConfirm: null })}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        variant="danger"
+        confirmText="Delete"
+      />
     </div>
   );
 }

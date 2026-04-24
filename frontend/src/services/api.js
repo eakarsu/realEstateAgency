@@ -34,7 +34,9 @@ export const authAPI = {
   login: (data) => api.post('/auth/login', data),
   register: (data) => api.post('/auth/register', data),
   me: () => api.get('/auth/me'),
-  updatePassword: (data) => api.put('/auth/password', data)
+  updatePassword: (data) => api.put('/auth/password', data),
+  forgotPassword: (data) => api.post('/auth/forgot-password', data),
+  resetPassword: (data) => api.post('/auth/reset-password', data)
 };
 
 // Users
@@ -57,7 +59,9 @@ export const leadsAPI = {
   addActivity: (id, data) => api.post(`/leads/${id}/activities`, data),
   getActivities: (id) => api.get(`/leads/${id}/activities`),
   updateTags: (id, tags) => api.put(`/leads/${id}/tags`, { tags }),
-  getStats: () => api.get('/leads/stats/overview')
+  getStats: () => api.get('/leads/stats/overview'),
+  bulkDelete: (ids) => api.post('/leads/bulk-delete', { ids }),
+  bulkUpdate: (ids, data) => api.post('/leads/bulk-update', { ids, data })
 };
 
 // Properties
@@ -77,7 +81,9 @@ export const propertiesAPI = {
   },
   deletePhoto: (id, photoId) => api.delete(`/properties/${id}/photos/${photoId}`),
   addVirtualTour: (id, data) => api.post(`/properties/${id}/virtual-tours`, data),
-  getStats: () => api.get('/properties/stats/overview')
+  getStats: () => api.get('/properties/stats/overview'),
+  bulkDelete: (ids) => api.post('/properties/bulk-delete', { ids }),
+  bulkUpdate: (ids, data) => api.post('/properties/bulk-update', { ids, data })
 };
 
 // Transactions
@@ -89,7 +95,9 @@ export const transactionsAPI = {
   delete: (id) => api.delete(`/transactions/${id}`),
   updateMilestone: (id, milestoneId, data) => api.put(`/transactions/${id}/milestones/${milestoneId}`, data),
   updateChecklist: (id, checklistId, data) => api.put(`/transactions/${id}/checklists/${checklistId}`, data),
-  getStats: () => api.get('/transactions/stats/overview')
+  getStats: () => api.get('/transactions/stats/overview'),
+  bulkDelete: (ids) => api.post('/transactions/bulk-delete', { ids }),
+  bulkUpdate: (ids, data) => api.post('/transactions/bulk-update', { ids, data })
 };
 
 // Agents
@@ -125,7 +133,9 @@ export const showingsAPI = {
   delete: (id) => api.delete(`/showings/${id}`),
   getToday: () => api.get('/showings/today/list'),
   getUpcoming: () => api.get('/showings/upcoming/list'),
-  addFeedback: (id, data) => api.post(`/showings/${id}/feedback`, data)
+  addFeedback: (id, data) => api.post(`/showings/${id}/feedback`, data),
+  bulkDelete: (ids) => api.post('/showings/bulk-delete', { ids }),
+  bulkUpdate: (ids, data) => api.post('/showings/bulk-update', { ids, data })
 };
 
 // Tasks
@@ -137,7 +147,9 @@ export const tasksAPI = {
   delete: (id) => api.delete(`/tasks/${id}`),
   getOverdue: () => api.get('/tasks/overdue/list'),
   getToday: () => api.get('/tasks/today/list'),
-  complete: (id) => api.post(`/tasks/${id}/complete`)
+  complete: (id) => api.post(`/tasks/${id}/complete`),
+  bulkDelete: (ids) => api.post('/tasks/bulk-delete', { ids }),
+  bulkUpdate: (ids, data) => api.post('/tasks/bulk-update', { ids, data })
 };
 
 // Campaigns
@@ -174,7 +186,10 @@ export const documentsAPI = {
   delete: (id) => api.delete(`/documents/${id}`),
   updateSignature: (id, status) => api.put(`/documents/${id}/signature`, { signatureStatus: status }),
   getPending: () => api.get('/documents/pending/signatures'),
-  getByTransaction: (transactionId) => api.get(`/documents/transaction/${transactionId}`)
+  getByTransaction: (transactionId) => api.get(`/documents/transaction/${transactionId}`),
+  upload: (formData) => api.post('/documents/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
 };
 
 // Commissions
@@ -228,7 +243,14 @@ export const aiAPI = {
   offerAnalyzer: (data) => api.post('/ai/offer-analyzer', data),
   investmentAnalyzer: (data) => api.post('/ai/investment-analyzer', data),
   openHouseSummary: (data) => api.post('/ai/open-house-summary', data),
-  buyerPersona: (data) => api.post('/ai/buyer-persona', data)
+  buyerPersona: (data) => api.post('/ai/buyer-persona', data),
+  // New AI Features
+  virtualTourCreator: (data) => api.post('/ai/virtual-tour-creator', data),
+  rentalPriceOptimizer: (data) => api.post('/ai/rental-price-optimizer', data),
+  tenantScreener: (data) => api.post('/ai/tenant-screener', data),
+  mortgageCalculator: (data) => api.post('/ai/mortgage-calculator', data),
+  investmentPropertyFinder: (data) => api.post('/ai/investment-property-finder', data),
+  propertyAppraiser: (data) => api.post('/ai/property-appraiser', data)
 };
 
 // Dashboard
