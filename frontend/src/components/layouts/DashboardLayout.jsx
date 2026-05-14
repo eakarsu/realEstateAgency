@@ -63,6 +63,8 @@ const settingsNav = [
 
 const aiNav = [
   { name: 'AI Hub', href: '/ai-hub', icon: SparklesIcon },
+  { name: 'CMA & Compliance', href: '/ai-legal-tools', icon: SparklesIcon },
+  { name: 'Sales Intelligence', href: '/ai-sales-intelligence', icon: SparklesIcon },
 ];
 
 export default function DashboardLayout() {

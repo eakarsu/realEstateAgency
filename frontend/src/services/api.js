@@ -250,7 +250,12 @@ export const aiAPI = {
   tenantScreener: (data) => api.post('/ai/tenant-screener', data),
   mortgageCalculator: (data) => api.post('/ai/mortgage-calculator', data),
   investmentPropertyFinder: (data) => api.post('/ai/investment-property-finder', data),
-  propertyAppraiser: (data) => api.post('/ai/property-appraiser', data)
+  propertyAppraiser: (data) => api.post('/ai/property-appraiser', data),
+  comparableAnalysis: (data) => api.post('/ai/comparable-analysis', data),
+  complianceChecker: (data) => api.post('/ai/compliance-checker', data),
+  predictiveLeadScoring: (data) => api.post('/ai/predictive-lead-scoring', data),
+  buyerJourneyPersonalization: (data) => api.post('/ai/buyer-journey-personalization', data),
+  pipelineForecast: (data) => api.post('/ai/pipeline-forecast', data)
 };
 
 // Dashboard

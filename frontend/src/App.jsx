@@ -1,3 +1,13 @@
+// === Batch 11 Gaps & Frontend Mounts ===
+import GapCompAnalysisPage from './pages/gap/GapCompAnalysisPage'
+import GapComplianceCheckerPage from './pages/gap/GapComplianceCheckerPage'
+import GapEsignWorkflowPage from './pages/gap/GapEsignWorkflowPage'
+import GapDualAgencyCheckPage from './pages/gap/GapDualAgencyCheckPage'
+import GapClosingWorkflowPage from './pages/gap/GapClosingWorkflowPage'
+import GapCrmSyncPage from './pages/gap/GapCrmSyncPage'
+import GapMobileAgentAppPage from './pages/gap/GapMobileAgentAppPage'
+import GapCommissionForecastingPage from './pages/gap/GapCommissionForecastingPage'
+import GapRentalManagementPage from './pages/gap/GapRentalManagementPage'
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import ErrorBoundary from './components/common/ErrorBoundary';
@@ -64,6 +74,8 @@ import Integrations from './pages/settings/Integrations';
 
 // AI Pages
 import AIHub from './pages/ai/AIHub';
+import AILegalTools from './pages/ai/AILegalTools';
+import AISalesIntelligence from './pages/ai/AISalesIntelligence';
 
 // Client Portal Pages
 import ClientPortal from './pages/portal/ClientPortal';
@@ -171,6 +183,8 @@ function App() {
 
         {/* AI Hub */}
         <Route path="ai-hub" element={<AIHub />} />
+        <Route path="ai-legal-tools" element={<AILegalTools />} />
+        <Route path="ai-sales-intelligence" element={<AISalesIntelligence />} />
       </Route>
 
       {/* Client Portal Routes */}
@@ -190,7 +204,17 @@ function App() {
 
       {/* Catch all */}
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
-    </Routes>
+          {/* === Batch 11 Gaps & Frontend Mounts === */}
+        <Route path="/gap/comp-analysis" element={<GapCompAnalysisPage />} />
+        <Route path="/gap/compliance-checker" element={<GapComplianceCheckerPage />} />
+        <Route path="/gap/esign-workflow" element={<GapEsignWorkflowPage />} />
+        <Route path="/gap/dual-agency-check" element={<GapDualAgencyCheckPage />} />
+        <Route path="/gap/closing-workflow" element={<GapClosingWorkflowPage />} />
+        <Route path="/gap/crm-sync" element={<GapCrmSyncPage />} />
+        <Route path="/gap/mobile-agent-app" element={<GapMobileAgentAppPage />} />
+        <Route path="/gap/commission-forecasting" element={<GapCommissionForecastingPage />} />
+        <Route path="/gap/rental-management" element={<GapRentalManagementPage />} />
+      </Routes>
     </ErrorBoundary>
   );
 }

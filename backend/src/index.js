@@ -74,6 +74,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/integrations', integrationRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/exports', exportRoutes);
+app.use('/api/ai-extras', require('./routes/aiExtras'));
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -87,6 +88,8 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 3001;
+
+app.use('/api', require('./routes/gap-features')); // === Batch 11 Gaps & Frontend Mounts ===
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

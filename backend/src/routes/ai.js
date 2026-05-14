@@ -2,8 +2,22 @@ const express = require('express');
 const router = express.Router();
 const { authenticateToken, requireRole } = require('../middleware/auth');
 
+// AI error helper — surfaces 503 for missing keys, else 500.
+function handleAIError(err, res, fallbackMsg) {
+  if (err && (err.code === 'NO_API_KEY' || /OPENROUTER_API_KEY not configured/i.test(err.message || ''))) {
+    return res.status(503).json({ error: 'AI service unavailable: OPENROUTER_API_KEY not configured' });
+  }
+  console.error(fallbackMsg || 'AI error:', err);
+  return res.status(500).json({ error: fallbackMsg || 'AI request failed' });
+}
+
 // OpenRouter API helper with temperature control
 async function callOpenRouter(prompt, systemPrompt = '', options = {}) {
+  if (!process.env.OPENROUTER_API_KEY || /your-/i.test(process.env.OPENROUTER_API_KEY)) {
+    const e = new Error('OPENROUTER_API_KEY not configured');
+    e.code = 'NO_API_KEY';
+    throw e;
+  }
   const temperature = options.temperature !== undefined ? options.temperature : 0.7;
 
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -3569,6 +3583,185 @@ Provide a comprehensive appraisal report. Return ONLY valid JSON in this exact f
   } catch (error) {
     console.error('Property appraiser error:', error);
     res.status(500).json({ error: 'Failed to generate property appraisal' });
+  }
+});
+
+// AI Comparable Analysis - generate comp report from subject + nearby properties
+router.post('/comparable-analysis', authenticateToken, async (req, res) => {
+  try {
+    const { subject, comparables, marketContext } = req.body;
+
+    if (!subject) {
+      return res.status(400).json({ error: 'subject (object) is required' });
+    }
+
+    const systemPrompt = 'You are a real estate analyst. Generate a comparable sales (CMA) report. Output strict JSON with keys: priceRange (low, high, recommended), adjustedComps (array with adjustments and reasoning), marketTrends, confidenceScore (0-1), notes.';
+
+    const prompt = `Subject Property:\n${JSON.stringify(subject, null, 2)}\n\nComparables (${(comparables || []).length}):\n${JSON.stringify((comparables || []).slice(0, 10), null, 2)}\n\nMarket Context:\n${JSON.stringify(marketContext || {}, null, 2)}\n\nReturn JSON only.`;
+
+    const aiResult = await callOpenRouter(prompt, systemPrompt, { temperature: 0.3, max_tokens: 4000 });
+
+    let parsed;
+    try {
+      parsed = JSON.parse(aiResult);
+    } catch (e) {
+      parsed = { rawAnalysis: aiResult };
+    }
+
+    res.json({
+      subject,
+      analysis: parsed,
+      generatedAt: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Comparable analysis error:', error);
+    res.status(500).json({ error: 'Failed to generate comparable analysis' });
+  }
+});
+
+// AI Compliance Checker - flag potential real-estate compliance issues
+router.post('/compliance-checker', authenticateToken, async (req, res) => {
+  try {
+    const { listing, transaction, jurisdiction } = req.body;
+
+    const systemPrompt = 'You are a real estate compliance reviewer. Identify potential compliance flags (Fair Housing, RESPA, agency disclosure, MLS rules, dual-agency, advertising rules, license display) in the provided context. Output strict JSON: { flags: [{ category, severity, issue, recommendation }], summary, jurisdictionNotes }. This is informational only and not legal advice.';
+
+    const prompt = `Jurisdiction: ${jurisdiction || 'unspecified'}\n\nListing:\n${JSON.stringify(listing || {}, null, 2)}\n\nTransaction:\n${JSON.stringify(transaction || {}, null, 2)}\n\nReturn JSON only.`;
+
+    const aiResult = await callOpenRouter(prompt, systemPrompt, { temperature: 0.2, max_tokens: 3000 });
+
+    let parsed;
+    try {
+      parsed = JSON.parse(aiResult);
+    } catch (e) {
+      parsed = { rawAnalysis: aiResult };
+    }
+
+    res.json({
+      jurisdiction: jurisdiction || 'unspecified',
+      compliance: parsed,
+      generatedAt: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Compliance checker error:', error);
+    res.status(500).json({ error: 'Failed to run compliance check' });
+  }
+});
+
+// AI Predictive Lead Scoring — score leads on likelihood-to-close using historical signals
+router.post('/predictive-lead-scoring', authenticateToken, async (req, res) => {
+  try {
+    const { leads, historicalDealsContext, weighting } = req.body;
+    if (!Array.isArray(leads) || leads.length === 0) {
+      return res.status(400).json({ error: 'leads must be a non-empty array' });
+    }
+
+    const systemPrompt = 'You are a real estate sales-ops analyst. Predict close-probability for each lead based on stated attributes and (optionally) historical deal patterns. Output strict JSON: { rankedLeads: [{ leadId, score (0-100), tier ("hot"|"warm"|"cold"), reasons:[string], recommendedNextActions:[string], estimatedTimeToCloseDays, riskFlags:[string] }], modelNotes }.';
+
+    const prompt = `Leads (max 50):
+${JSON.stringify(leads.slice(0, 50), null, 2)}
+
+Historical Deals Context (optional):
+${JSON.stringify(historicalDealsContext || {}, null, 2)}
+
+Weighting Hints (optional):
+${JSON.stringify(weighting || {}, null, 2)}
+
+Return JSON only.`;
+
+    const aiResult = await callOpenRouter(prompt, systemPrompt, { temperature: 0.2, max_tokens: 5000 });
+    let parsed;
+    try { parsed = JSON.parse(aiResult); } catch (_) { parsed = { rawAnalysis: aiResult }; }
+
+    res.json({
+      leadCount: leads.length,
+      scoring: parsed,
+      generatedAt: new Date().toISOString()
+    });
+  } catch (error) {
+    return handleAIError(error, res, 'Failed to score leads');
+  }
+});
+
+// AI Buyer Journey Personalization — produce targeted email/SMS triggers per buyer stage
+router.post('/buyer-journey-personalization', authenticateToken, async (req, res) => {
+  try {
+    const { buyer, stage, recentInteractions, propertyShortlist, channels } = req.body;
+    if (!buyer || typeof buyer !== 'object') {
+      return res.status(400).json({ error: 'buyer (object) is required' });
+    }
+
+    const systemPrompt = 'You are a real estate marketing automation specialist. Produce a personalized journey plan for the buyer at the given stage. Output strict JSON: { stage, summary, recommendedTriggers:[{ channel ("email"|"sms"|"call"|"in-app"), timing, subject, message, callToAction, rationale }], nextStageCriteria, listingsToFeature:[string], avoidTopics:[string] }. Be compliant and avoid Fair Housing violations.';
+
+    const allowedChannels = Array.isArray(channels) && channels.length ? channels : ['email', 'sms'];
+    const prompt = `Buyer:
+${JSON.stringify(buyer, null, 2)}
+
+Stage: ${stage || 'unspecified (infer from context)'}
+Allowed channels: ${allowedChannels.join(', ')}
+
+Recent Interactions:
+${JSON.stringify(recentInteractions || [], null, 2)}
+
+Property Shortlist:
+${JSON.stringify(propertyShortlist || [], null, 2)}
+
+Return JSON only.`;
+
+    const aiResult = await callOpenRouter(prompt, systemPrompt, { temperature: 0.5, max_tokens: 4000 });
+    let parsed;
+    try { parsed = JSON.parse(aiResult); } catch (_) { parsed = { rawAnalysis: aiResult }; }
+
+    res.json({
+      buyerId: buyer.id || buyer.leadId || null,
+      stage: stage || null,
+      personalization: parsed,
+      generatedAt: new Date().toISOString()
+    });
+  } catch (error) {
+    return handleAIError(error, res, 'Failed to generate personalized journey');
+  }
+});
+
+// AI Pipeline Forecast — sales/commission forecast from current pipeline
+router.post('/pipeline-forecast', authenticateToken, async (req, res) => {
+  try {
+    const { pipeline, horizonMonths, commissionStructure, marketContext } = req.body;
+    if (!Array.isArray(pipeline) || pipeline.length === 0) {
+      return res.status(400).json({ error: 'pipeline must be a non-empty array of deals' });
+    }
+    const horizon = parseInt(horizonMonths, 10) || 3;
+    if (horizon < 1 || horizon > 24) {
+      return res.status(400).json({ error: 'horizonMonths must be between 1 and 24' });
+    }
+
+    const systemPrompt = 'You are a real estate sales forecaster. Produce a pipeline forecast across the requested horizon. Output strict JSON: { horizonMonths, baseCase:{ closedDeals, gci, netCommission }, optimisticCase:{...}, pessimisticCase:{...}, monthlyBreakdown:[{ monthIndex, expectedClosings, expectedGci, riskLevel }], topRisks:[string], topOpportunities:[string], assumptions:[string] }. Use probability-weighted close-rates.';
+
+    const prompt = `Pipeline (max 100 deals):
+${JSON.stringify(pipeline.slice(0, 100), null, 2)}
+
+Horizon (months): ${horizon}
+
+Commission Structure:
+${JSON.stringify(commissionStructure || {}, null, 2)}
+
+Market Context:
+${JSON.stringify(marketContext || {}, null, 2)}
+
+Return JSON only.`;
+
+    const aiResult = await callOpenRouter(prompt, systemPrompt, { temperature: 0.3, max_tokens: 5000 });
+    let parsed;
+    try { parsed = JSON.parse(aiResult); } catch (_) { parsed = { rawAnalysis: aiResult }; }
+
+    res.json({
+      pipelineSize: pipeline.length,
+      horizonMonths: horizon,
+      forecast: parsed,
+      generatedAt: new Date().toISOString()
+    });
+  } catch (error) {
+    return handleAIError(error, res, 'Failed to generate pipeline forecast');
   }
 });
 
