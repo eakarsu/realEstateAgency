@@ -75,6 +75,7 @@ app.use('/api/integrations', integrationRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/exports', exportRoutes);
 app.use('/api/ai-extras', require('./routes/aiExtras'));
+app.use('/api/custom-views', require('./routes/customViews'));
 
 // Health check
 app.get('/api/health', (req, res) => {

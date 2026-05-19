@@ -8,6 +8,7 @@ import GapCrmSyncPage from './pages/gap/GapCrmSyncPage'
 import GapMobileAgentAppPage from './pages/gap/GapMobileAgentAppPage'
 import GapCommissionForecastingPage from './pages/gap/GapCommissionForecastingPage'
 import GapRentalManagementPage from './pages/gap/GapRentalManagementPage'
+import CustomViewsPage from './pages/CustomViewsPage'
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import ErrorBoundary from './components/common/ErrorBoundary';
@@ -185,6 +186,9 @@ function App() {
         <Route path="ai-hub" element={<AIHub />} />
         <Route path="ai-legal-tools" element={<AILegalTools />} />
         <Route path="ai-sales-intelligence" element={<AISalesIntelligence />} />
+
+        {/* Custom Agency Views */}
+        <Route path="custom-views" element={<CustomViewsPage />} />
       </Route>
 
       {/* Client Portal Routes */}
