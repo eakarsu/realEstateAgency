@@ -84,6 +84,9 @@ import PropertySearch from './pages/portal/PropertySearch';
 import Favorites from './pages/portal/Favorites';
 import SavedSearches from './pages/portal/SavedSearches';
 
+import CodexCustomVizFeature from './pages/CodexCustomVizFeature';
+import CodexOperationsFeature from './pages/CodexOperationsFeature';
+
 function PrivateRoute({ children, allowedRoles }) {
   const { user, loading, isAuthenticated } = useAuth();
 
@@ -112,6 +115,9 @@ function App() {
   return (
     <ErrorBoundary>
     <Routes>
+        <Route path="/codex/custom-viz" element={<CodexCustomVizFeature />} />
+        <Route path="/codex/operations" element={<CodexOperationsFeature />} />
+
       {/* Public Routes */}
       <Route element={<PublicLayout />}>
         <Route path="/login" element={<Login />} />

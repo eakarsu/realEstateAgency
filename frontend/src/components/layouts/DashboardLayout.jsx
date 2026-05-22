@@ -67,6 +67,10 @@ const aiNav = [
   { name: 'Sales Intelligence', href: '/ai-sales-intelligence', icon: SparklesIcon },
 ];
 
+const agencyViewsNav = [
+  { name: 'Agency Views', href: '/custom-views', icon: SparklesIcon },
+];
+
 export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -230,6 +234,8 @@ export default function DashboardLayout() {
           <NavSection title="Reports" items={reportsNav} />
 
           <NavSection title="AI Tools" items={aiNav} />
+
+          <NavSection title="Agency Views" items={agencyViewsNav} />
 
           {(user?.role === 'ADMIN' || user?.role === 'MANAGER') && (
             <NavSection title="Settings" items={settingsNav} />
