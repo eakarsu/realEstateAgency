@@ -117,44 +117,6 @@ export default function Login() {
           </div>
         </div>
 
-        <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-          <p className="text-sm text-blue-800 font-medium mb-3">Demo Accounts (Click to auto-fill):</p>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => { setEmail('admin@realestate.com'); setPassword('password123'); }}
-              className="text-left px-3 py-2 bg-white rounded-lg border border-blue-200 hover:border-blue-400 hover:bg-blue-50 transition-all"
-            >
-              <span className="block text-xs font-semibold text-blue-800">Admin</span>
-              <span className="block text-xs text-blue-600 truncate">admin@realestate.com</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => { setEmail('manager@realestate.com'); setPassword('password123'); }}
-              className="text-left px-3 py-2 bg-white rounded-lg border border-blue-200 hover:border-blue-400 hover:bg-blue-50 transition-all"
-            >
-              <span className="block text-xs font-semibold text-blue-800">Manager</span>
-              <span className="block text-xs text-blue-600 truncate">manager@realestate.com</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => { setEmail('john@realestate.com'); setPassword('password123'); }}
-              className="text-left px-3 py-2 bg-white rounded-lg border border-blue-200 hover:border-blue-400 hover:bg-blue-50 transition-all"
-            >
-              <span className="block text-xs font-semibold text-blue-800">Agent</span>
-              <span className="block text-xs text-blue-600 truncate">john@realestate.com</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => { setEmail('client@example.com'); setPassword('password123'); }}
-              className="text-left px-3 py-2 bg-white rounded-lg border border-blue-200 hover:border-blue-400 hover:bg-blue-50 transition-all"
-            >
-              <span className="block text-xs font-semibold text-blue-800">Client</span>
-              <span className="block text-xs text-blue-600 truncate">client@example.com</span>
-            </button>
-          </div>
-          <p className="text-xs text-blue-600 mt-2 text-center">Password: password123</p>
-        </div>
       </div>
     </div>
   );

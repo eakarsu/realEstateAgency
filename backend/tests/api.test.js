@@ -40,7 +40,7 @@ beforeAll(async () => {
   await prisma.leadSource.deleteMany({});
 
   // Create test users
-  const hashedPassword = await bcrypt.hash('password123', 10);
+  const hashedPassword = await bcrypt.hash('StrongTestPass!2026', 10);
 
   testAdmin = await prisma.user.create({
     data: {
@@ -110,14 +110,16 @@ describe('Auth API', () => {
         .post('/api/auth/register')
         .send({
           email: 'newuser@test.com',
-          password: 'password123',
+          password: 'StrongTestPass!2026',
           firstName: 'New',
-          lastName: 'User'
+          lastName: 'User',
+          role: 'ADMIN'
         });
 
       expect(res.statusCode).toBe(201);
       expect(res.body).toHaveProperty('token');
       expect(res.body.user).toHaveProperty('email', 'newuser@test.com');
+      expect(res.body.user).toHaveProperty('role', 'CLIENT');
     });
 
     it('should not register user with existing email', async () => {
@@ -125,7 +127,7 @@ describe('Auth API', () => {
         .post('/api/auth/register')
         .send({
           email: 'testadmin@test.com',
-          password: 'password123',
+          password: 'StrongTestPass!2026',
           firstName: 'Duplicate',
           lastName: 'User'
         });
@@ -150,7 +152,7 @@ describe('Auth API', () => {
         .post('/api/auth/login')
         .send({
           email: 'testadmin@test.com',
-          password: 'password123'
+          password: 'StrongTestPass!2026'
         });
 
       expect(res.statusCode).toBe(200);
@@ -163,7 +165,7 @@ describe('Auth API', () => {
         .post('/api/auth/login')
         .send({
           email: 'testagent@test.com',
-          password: 'password123'
+          password: 'StrongTestPass!2026'
         });
 
       expect(res.statusCode).toBe(200);
@@ -176,7 +178,7 @@ describe('Auth API', () => {
         .post('/api/auth/login')
         .send({
           email: 'testclient@test.com',
-          password: 'password123'
+          password: 'StrongTestPass!2026'
         });
 
       expect(res.statusCode).toBe(200);
@@ -210,6 +212,46 @@ describe('Auth API', () => {
       const res = await request(app).get('/api/auth/me');
 
       expect(res.statusCode).toBe(401);
+    });
+  });
+
+  describe('Password reset', () => {
+    it('stores only a reset-token hash and invalidates the old password', async () => {
+      let delivered;
+      app.set('passwordResetNotifier', async (message) => { delivered = message; });
+      const requested = await request(app)
+        .post('/api/auth/forgot-password')
+        .send({ email: 'newuser@test.com' });
+      expect(requested.statusCode).toBe(200);
+      expect(delivered.token).toBeTruthy();
+
+      const stored = await prisma.user.findUnique({ where: { email: 'newuser@test.com' } });
+      expect(stored.resetToken).toHaveLength(64);
+      expect(stored.resetToken).not.toBe(delivered.token);
+
+      const reset = await request(app)
+        .post('/api/auth/reset-password')
+        .send({ token: delivered.token, password: 'A-New-Strong-Pass!2026' });
+      expect(reset.statusCode).toBe(200);
+
+      const oldLogin = await request(app)
+        .post('/api/auth/login')
+        .send({ email: 'newuser@test.com', password: 'StrongTestPass!2026' });
+      expect(oldLogin.statusCode).toBe(401);
+      const newLogin = await request(app)
+        .post('/api/auth/login')
+        .send({ email: 'newuser@test.com', password: 'A-New-Strong-Pass!2026' });
+      expect(newLogin.statusCode).toBe(200);
+      app.set('passwordResetNotifier', undefined);
+    });
+
+    it('does not create a token when no mail adapter is configured', async () => {
+      const requested = await request(app)
+        .post('/api/auth/forgot-password')
+        .send({ email: 'testadmin@test.com' });
+      expect(requested.statusCode).toBe(200);
+      const stored = await prisma.user.findUnique({ where: { email: 'testadmin@test.com' } });
+      expect(stored.resetToken).toBeNull();
     });
   });
 });

@@ -1,29 +1,34 @@
-import { defineConfig } from 'vite'
+import { defineConfig, transformWithOxc } from 'vite'
 import react from '@vitejs/plugin-react'
 
-export default defineConfig({
-  plugins: [react({ include: /\.(js|jsx|ts|tsx)$/ })],
-  esbuild: {
-    loader: 'jsx',
-    include: /src\/.*\.(js|jsx)$/,
-    exclude: []
-  },
-  optimizeDeps: {
-    esbuildOptions: {
-      loader: { '.js': 'jsx' }
+const projectJsx = {
+  name: 'project-js-as-jsx',
+  enforce: 'pre',
+  async transform(code, id) {
+    if (/\/src\/.*\.js$/.test(id)) {
+      return transformWithOxc(code, id, { lang: 'jsx' })
     }
-  },
+  }
+}
+
+export default defineConfig({
+  plugins: [projectJsx, react({ include: /\.(js|jsx|ts|tsx)$/ })],
   server: {
-    port: 3000,
     proxy: {
       '/api': {
-        target: 'http://localhost:3001',
+        target: `http://127.0.0.1:${process.env.BACKEND_PORT || 3001}`,
         changeOrigin: true
       },
       '/uploads': {
-        target: 'http://localhost:3001',
+        target: `http://127.0.0.1:${process.env.BACKEND_PORT || 3001}`,
         changeOrigin: true
       }
+    }
+  },
+  preview: {
+    proxy: {
+      '/api': { target: `http://127.0.0.1:${process.env.BACKEND_PORT || 3001}`, changeOrigin: true },
+      '/uploads': { target: `http://127.0.0.1:${process.env.BACKEND_PORT || 3001}`, changeOrigin: true }
     }
   }
 })

@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import { BuildingOfficeIcon } from '@heroicons/react/24/outline';
 
 const schema = {
-  password: ['required', validators.minLength(6)],
+  password: ['required', validators.minLength(12)],
   confirmPassword: ['required'],
 };
 

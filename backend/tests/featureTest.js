@@ -1,6 +1,6 @@
 /**
  * Comprehensive Feature Test - Tests all buttons and features
- * Using Admin account: admin@realestate.com / password123
+ * Using Admin account: admin@realestate.com / StrongTestPass!2026
  */
 
 const http = require('http');
@@ -79,7 +79,7 @@ async function runTests() {
   // Login
   const loginRes = await fetchAPI('/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ email: 'admin@realestate.com', password: 'password123' })
+    body: JSON.stringify({ email: 'admin@realestate.com', password: 'StrongTestPass!2026' })
   });
   test('Login with admin credentials', loginRes.ok && loginRes.data.token, loginRes.data.error);
   adminToken = loginRes.data.token;

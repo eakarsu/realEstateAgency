@@ -1,9 +1,27 @@
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 const prisma = new PrismaClient();
 
 async function main() {
+  if (process.env.ALLOW_DISPOSABLE_SEED !== 'YES') {
+    throw new Error('Refusing fixture seed. Set ALLOW_DISPOSABLE_SEED=YES only for a disposable database.');
+  }
+  const seedEmail = String(process.env.SEED_ADMIN_EMAIL || '').trim().toLowerCase();
+  const seedPassword = String(process.env.SEED_ADMIN_PASSWORD || '');
+  if (!seedEmail || seedPassword.length < 16) {
+    throw new Error('SEED_ADMIN_EMAIL and a SEED_ADMIN_PASSWORD of at least 16 characters are required.');
+  }
+  let databaseUrl;
+  try { databaseUrl = new URL(String(process.env.DATABASE_URL || '')); }
+  catch { throw new Error('DATABASE_URL must be a valid PostgreSQL URL.'); }
+  if (!['postgres:', 'postgresql:'].includes(databaseUrl.protocol) || !['127.0.0.1', 'localhost', '[::1]'].includes(databaseUrl.hostname)) {
+    throw new Error('Fixture seed is restricted to a loopback PostgreSQL database.');
+  }
+  if (await prisma.user.count() !== 0) {
+    throw new Error('Fixture seed requires an empty users table.');
+  }
   console.log('Seeding database with comprehensive data...');
 
   // Create 15+ Lead Sources
@@ -73,13 +91,14 @@ async function main() {
   console.log(`Created ${tags.length} tags`);
 
   // Create Admin User
-  const password = await bcrypt.hash('password123', 10);
+  const adminPassword = await bcrypt.hash(seedPassword, 12);
+  const fixturePassword = await bcrypt.hash(crypto.randomBytes(48).toString('base64url'), 12);
   const admin = await prisma.user.upsert({
-    where: { email: 'admin@realestate.com' },
+    where: { email: seedEmail },
     update: {},
     create: {
-      email: 'admin@realestate.com',
-      password,
+      email: seedEmail,
+      password: adminPassword,
       firstName: 'Admin',
       lastName: 'User',
       phone: '555-0100',
@@ -94,7 +113,7 @@ async function main() {
     update: {},
     create: {
       email: 'manager@realestate.com',
-      password,
+      password: fixturePassword,
       firstName: 'Sarah',
       lastName: 'Johnson',
       phone: '555-0101',
@@ -142,7 +161,7 @@ async function main() {
       update: {},
       create: {
         email: data.email,
-        password,
+        password: fixturePassword,
         firstName: data.firstName,
         lastName: data.lastName,
         phone: `555-${String(Math.floor(Math.random() * 9000) + 1000)}`,
@@ -595,7 +614,7 @@ async function main() {
       update: {},
       create: {
         email: client.email,
-        password,
+        password: fixturePassword,
         firstName: client.firstName,
         lastName: client.lastName,
         phone: `555-${String(Math.floor(Math.random() * 9000) + 1000)}`,
@@ -608,11 +627,7 @@ async function main() {
   console.log('\n========================================');
   console.log('Seeding complete!');
   console.log('========================================');
-  console.log('\nTest Accounts:');
-  console.log('  Admin:   admin@realestate.com / password123');
-  console.log('  Manager: manager@realestate.com / password123');
-  console.log('  Agent:   john@realestate.com / password123');
-  console.log('  Client:  client@example.com / password123');
+  console.log(`\nOperator account created: ${seedEmail}`);
   console.log('\nData Summary:');
   console.log(`  - ${leadSources.length} Lead Sources`);
   console.log(`  - ${tags.length} Tags`);

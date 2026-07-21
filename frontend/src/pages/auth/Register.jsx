@@ -129,7 +129,7 @@ export default function Register() {
                 onChange={handleChange}
                 className="input"
                 required
-                minLength={6}
+                minLength={12}
               />
             </div>
 

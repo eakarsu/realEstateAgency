@@ -8,25 +8,26 @@ datasource db {
 }
 
 model User {
-  id            String         @id @default(uuid())
-  email         String         @unique
-  password      String
-  firstName     String
-  lastName      String
-  phone         String?
-  role          UserRole       @default(CLIENT)
-  avatar        String?
-  isActive      Boolean        @default(true)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  resetToken      String?
+  id               String         @id @default(uuid())
+  email            String         @unique
+  password         String
+  firstName        String
+  lastName         String
+  phone            String?
+  role             UserRole       @default(CLIENT)
+  avatar           String?
+  isActive         Boolean        @default(true)
+  authVersion      Int            @default(0)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  resetToken       String?
   resetTokenExpiry DateTime?
-  activities    Activity[]     @relation("UserActivities")
-  agent         Agent?
-  favorites     Favorite[]
-  messages      Message[]
-  notifications Notification[]
-  savedSearches SavedSearch[]
+  activities       Activity[]     @relation("UserActivities")
+  agent            Agent?
+  favorites        Favorite[]
+  messages         Message[]
+  notifications    Notification[]
+  savedSearches    SavedSearch[]
 
   @@map("users")
 }
@@ -56,6 +57,9 @@ model Agent {
   tasks              Task[]
   trainingRecords    TrainingRecord[]
   transactions       Transaction[]
+  ownedAccounts      CustomerAccount[]
+  handoffsFrom       LeadHandoff[]       @relation("HandoffFrom")
+  handoffsTo         LeadHandoff[]       @relation("HandoffTo")
 
   @@map("agents")
 }
@@ -106,31 +110,240 @@ model TrainingRecord {
 }
 
 model Lead {
-  id              String        @id @default(uuid())
+  id              String                 @id @default(uuid())
   firstName       String
   lastName        String
   email           String
+  normalizedEmail String?                @unique
   phone           String?
   sourceId        String?
   agentId         String?
-  status          LeadStatus    @default(NEW)
-  score           Int           @default(0)
+  status          LeadStatus             @default(NEW)
+  lifecycle       LeadLifecycle          @default(NEW)
+  privacyRegion   PrivacyRegion          @default(OTHER)
+  consentStatus   ConsentStatus          @default(PENDING)
+  version         Int                    @default(1)
+  accountId       String?
+  externalCrmId   String?
+  attribution     Json?
+  score           Int                    @default(0)
   budget          Float?
   timeline        String?
   propertyType    String?
   preferredAreas  String[]
   notes           String?
   lastContactedAt DateTime?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
   activities      Activity[]
-  agent           Agent?        @relation(fields: [agentId], references: [id])
-  source          LeadSource?   @relation(fields: [sourceId], references: [id])
+  agent           Agent?                 @relation(fields: [agentId], references: [id])
+  source          LeadSource?            @relation(fields: [sourceId], references: [id])
   showings        Showing[]
   tags            TagOnLead[]
   transactions    Transaction[]
+  account         CustomerAccount?       @relation(fields: [accountId], references: [id])
+  consentRecords  ConsentRecord[]
+  lifecycleEvents LeadLifecycleEvent[]
+  handoffs        LeadHandoff[]
+  operations      IntegrationOperation[]
+  outreachDrafts  OutreachDraft[]
+  deliveries      OutreachDelivery[]
 
+  @@index([lifecycle, agentId])
   @@map("leads")
+}
+
+model CustomerAccount {
+  id             String           @id @default(uuid())
+  name           String
+  normalizedName String           @unique
+  lifecycle      AccountLifecycle @default(PROSPECT)
+  ownerAgentId   String?
+  privacyRegion  PrivacyRegion    @default(OTHER)
+  version        Int              @default(1)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  owner          Agent?           @relation(fields: [ownerAgentId], references: [id])
+  leads          Lead[]
+
+  @@map("customer_accounts")
+}
+
+model ConsentRecord {
+  id         String        @id @default(uuid())
+  leadId     String
+  channel    String        @default("EMAIL")
+  status     ConsentStatus
+  source     String
+  purpose    String
+  evidence   Json?
+  capturedAt DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime      @default(now())
+  lead       Lead          @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId, channel, capturedAt])
+  @@map("consent_records")
+}
+
+model SuppressionEntry {
+  id              String   @id @default(uuid())
+  normalizedEmail String   @unique
+  reason          String
+  source          String
+  occurredAt      DateTime
+  createdAt       DateTime @default(now())
+
+  @@map("suppression_entries")
+}
+
+model ProviderConnection {
+  id               String                 @id @default(uuid())
+  name             String                 @unique
+  type             ProviderType
+  baseUrl          String
+  tokenEnv         String
+  webhookSecretEnv String
+  contractRef      String
+  isActive         Boolean                @default(false)
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  syncEvents       SyncEvent[]
+  operations       IntegrationOperation[]
+
+  @@map("provider_connections")
+}
+
+model SyncEvent {
+  id                   String             @id @default(uuid())
+  providerConnectionId String
+  externalEventId      String
+  eventType            String
+  direction            SyncDirection
+  payloadHash          String
+  payload              Json
+  sourceOccurredAt     DateTime
+  status               SyncStatus         @default(PROCESSING)
+  error                String?
+  createdAt            DateTime           @default(now())
+  processedAt          DateTime?
+  providerConnection   ProviderConnection @relation(fields: [providerConnectionId], references: [id])
+
+  @@unique([providerConnectionId, externalEventId])
+  @@index([status, createdAt])
+  @@map("sync_events")
+}
+
+model IntegrationOperation {
+  id                   String             @id @default(uuid())
+  providerConnectionId String
+  leadId               String?
+  kind                 OperationKind
+  payload              Json
+  idempotencyKey       String             @unique
+  status               OperationStatus    @default(PENDING)
+  attempts             Int                @default(0)
+  nextAttemptAt        DateTime           @default(now())
+  lastError            String?
+  externalId           String?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  providerConnection   ProviderConnection @relation(fields: [providerConnectionId], references: [id])
+  lead                 Lead?              @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([status, nextAttemptAt])
+  @@map("integration_operations")
+}
+
+model LeadLifecycleEvent {
+  id            String        @id @default(uuid())
+  leadId        String
+  fromLifecycle LeadLifecycle
+  toLifecycle   LeadLifecycle
+  actorUserId   String
+  reason        String
+  createdAt     DateTime      @default(now())
+  lead          Lead          @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId, createdAt])
+  @@map("lead_lifecycle_events")
+}
+
+model LeadHandoff {
+  id            String        @id @default(uuid())
+  leadId        String
+  fromAgentId   String?
+  toAgentId     String
+  requestedById String
+  approvedById  String?
+  acceptedById  String?
+  status        HandoffStatus @default(REQUESTED)
+  reason        String
+  lastError     String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  lead          Lead          @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  fromAgent     Agent?        @relation("HandoffFrom", fields: [fromAgentId], references: [id])
+  toAgent       Agent         @relation("HandoffTo", fields: [toAgentId], references: [id])
+
+  @@index([status, createdAt])
+  @@map("lead_handoffs")
+}
+
+model OutreachDraft {
+  id              String             @id @default(uuid())
+  leadId          String
+  requesterUserId String
+  reviewerUserId  String?
+  subject         String
+  body            String
+  calendarAt      DateTime?
+  status          ReviewStatus       @default(DRAFT)
+  reviewReason    String?
+  approvedAt      DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  lead            Lead               @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  deliveries      OutreachDelivery[]
+
+  @@index([status, createdAt])
+  @@map("outreach_drafts")
+}
+
+model OutreachDelivery {
+  id                String         @id @default(uuid())
+  outreachDraftId   String
+  leadId            String
+  idempotencyKey    String         @unique
+  providerMessageId String?
+  status            DeliveryStatus @default(QUEUED)
+  attempts          Int            @default(0)
+  lastError         String?
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  draft             OutreachDraft  @relation(fields: [outreachDraftId], references: [id], onDelete: Cascade)
+  lead              Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@map("outreach_deliveries")
+}
+
+model WorkflowAuditEvent {
+  id           String   @id @default(uuid())
+  sequence     BigInt   @unique @default(autoincrement())
+  entityType   String
+  entityId     String
+  action       String
+  actorUserId  String?
+  detail       Json
+  previousHash String
+  hash         String   @unique
+  createdAt    DateTime @default(now())
+
+  @@index([entityType, entityId, sequence])
+  @@map("workflow_audit_events")
 }
 
 model LeadSource {
@@ -670,6 +883,100 @@ enum LeadStatus {
   NEGOTIATING
   CLOSED_WON
   CLOSED_LOST
+}
+
+enum LeadLifecycle {
+  NEW
+  ASSIGNED
+  QUALIFIED
+  OUTREACH_READY
+  ENGAGED
+  CONVERTED
+  DISQUALIFIED
+}
+
+enum AccountLifecycle {
+  PROSPECT
+  ACTIVE
+  CUSTOMER
+  CLOSED
+}
+
+enum PrivacyRegion {
+  US_CAN_SPAM
+  EU_GDPR
+  CA_CCPA
+  OTHER
+}
+
+enum ConsentStatus {
+  PENDING
+  GRANTED
+  REVOKED
+}
+
+enum ProviderType {
+  CRM
+  EMAIL
+  CALENDAR
+  ENRICHMENT
+  CONSENT
+  SUPPRESSION
+}
+
+enum SyncDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum SyncStatus {
+  PROCESSING
+  APPLIED
+  QUARANTINED
+}
+
+enum OperationKind {
+  CRM_UPSERT
+  EMAIL_SEND
+  CALENDAR_CREATE
+  ENRICHMENT_REQUEST
+  CONSENT_EXPORT
+  SUPPRESSION_EXPORT
+}
+
+enum OperationStatus {
+  PENDING
+  PROCESSING
+  RETRY
+  SUCCEEDED
+  DEAD_LETTER
+  CANCELLED
+}
+
+enum HandoffStatus {
+  REQUESTED
+  APPROVED
+  ACCEPTED
+  REJECTED
+  RETRY_REQUIRED
+}
+
+enum ReviewStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum DeliveryStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  BOUNCED
+  COMPLAINED
+  OPTED_OUT
+  FAILED
 }
 
 enum ActivityType {

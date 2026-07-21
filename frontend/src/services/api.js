@@ -39,6 +39,16 @@ export const authAPI = {
   resetPassword: (data) => api.post('/auth/reset-password', data)
 };
 
+export const workflowAPI = {
+  queue: () => api.get('/workflow/queue'),
+  metrics: () => api.get('/workflow/metrics'),
+  verifyAudit: () => api.get('/workflow/audit/verify'),
+  reviewHandoff: (id, decision, reason) => api.post(`/workflow/handoffs/${id}/review`, { decision, reason }),
+  reviewOutreach: (id, decision, reason) => api.post(`/workflow/outreach/${id}/review`, { decision, reason }),
+  runOperations: (limit = 25) => api.post('/workflow/operations/run', { limit }),
+  retryOperation: (id) => api.post(`/workflow/operations/${id}/retry`),
+};
+
 // Users
 export const usersAPI = {
   getAll: (params) => api.get('/users', { params }),

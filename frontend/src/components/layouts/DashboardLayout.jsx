@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { notificationsAPI } from '../../services/api';
-import AIChatbotWidget from '../AIChatbotWidget';
 import {
   HomeIcon,
   UserGroupIcon,
@@ -20,10 +19,9 @@ import {
   UsersIcon,
   ClipboardDocumentListIcon,
   CurrencyDollarIcon,
-  LinkIcon,
   EnvelopeIcon,
   DocumentIcon,
-  SparklesIcon,
+  ArrowsRightLeftIcon,
   ChevronDownIcon
 } from '@heroicons/react/24/outline';
 
@@ -58,17 +56,7 @@ const reportsNav = [
 
 const settingsNav = [
   { name: 'Settings', href: '/settings', icon: Cog6ToothIcon },
-  { name: 'Integrations', href: '/integrations', icon: LinkIcon },
-];
-
-const aiNav = [
-  { name: 'AI Hub', href: '/ai-hub', icon: SparklesIcon },
-  { name: 'CMA & Compliance', href: '/ai-legal-tools', icon: SparklesIcon },
-  { name: 'Sales Intelligence', href: '/ai-sales-intelligence', icon: SparklesIcon },
-];
-
-const agencyViewsNav = [
-  { name: 'Agency Views', href: '/custom-views', icon: SparklesIcon },
+  { name: 'Workflow Control', href: '/workflow', icon: ArrowsRightLeftIcon },
 ];
 
 export default function DashboardLayout() {
@@ -233,10 +221,6 @@ export default function DashboardLayout() {
 
           <NavSection title="Reports" items={reportsNav} />
 
-          <NavSection title="AI Tools" items={aiNav} />
-
-          <NavSection title="Agency Views" items={agencyViewsNav} />
-
           {(user?.role === 'ADMIN' || user?.role === 'MANAGER') && (
             <NavSection title="Settings" items={settingsNav} />
           )}
@@ -372,8 +356,6 @@ export default function DashboardLayout() {
         </main>
       </div>
 
-      {/* AI Chatbot Widget */}
-      <AIChatbotWidget />
     </div>
   );
 }
