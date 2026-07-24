@@ -1,19 +1,30 @@
 #!/usr/bin/env bash
-set -Eeuo pipefail
-
+set -euo pipefail
+# Runtime governance modes: check|migrate|build|start. Prisma migrations remain explicit.
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
-SOURCE_DIR="${RUNTIME_PROJECT_SOURCE:-$PROJECT_DIR}"
-: "${PORT:?PORT is required; choose an unused port explicitly}"
-export PORT
-
-for name in DATABASE_URL JWT_SECRET CORS_ORIGINS; do
-  [[ -n "${!name:-}" ]] || { echo "Missing required environment variable: $name" >&2; exit 1; }
-done
-(( ${#JWT_SECRET} >= 32 )) || { echo "JWT_SECRET must be at least 32 characters" >&2; exit 1; }
-lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1 && { echo "Port $PORT is already in use; refusing to stop an unrelated process" >&2; exit 1; }
-[[ -d "$SOURCE_DIR/backend/node_modules" ]] || { echo "Run npm ci in backend first" >&2; exit 1; }
-[[ -d "$SOURCE_DIR/frontend/node_modules" ]] || { echo "Run npm ci in frontend first" >&2; exit 1; }
-[[ -f "$SOURCE_DIR/frontend/dist/index.html" ]] || { echo "Run npm run build in frontend first" >&2; exit 1; }
-
-cd "$SOURCE_DIR/backend"
-exec node src/index.js
+ENV_FILE="$PROJECT_DIR/.env"
+load_env_file(){ local line key value;while IFS= read -r line||[ -n "$line" ];do [[ "$line" =~ ^[[:space:]]*# || "$line" =~ ^[[:space:]]*$ ]]&&continue;line="${line#export }";key="${line%%=*}";value="${line#*=}";key="${key//[[:space:]]/}";[[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]||continue;[ -n "${!key+x}" ]&&continue;if [[ "$value" == \"*\" && "$value" == *\" ]];then value="${value:1:${#value}-2}";elif [[ "$value" == \'*\' && "$value" == *\' ]];then value="${value:1:${#value}-2}";fi;export "$key=$value";done < "$ENV_FILE"; }
+[ -f "$ENV_FILE" ]||{ echo "Missing required file: $ENV_FILE" >&2;exit 1; };load_env_file
+case "${1:-start}" in
+  check) cd "$PROJECT_DIR/backend";exec npm test ;;
+  migrate) [[ "${ALLOW_SCHEMA_MIGRATION:-}" =~ ^(1|true)$ ]]||{ echo "Set ALLOW_SCHEMA_MIGRATION=1 for explicit migration" >&2;exit 1; };cd "$PROJECT_DIR/backend";exec npm run prisma:migrate ;;
+  build) cd "$PROJECT_DIR/frontend";exec npm run build ;;
+  start) ;;
+  *) echo "Usage: $0 [start|check|migrate|build]" >&2;exit 64 ;;
+esac
+: "${BACKEND_PORT:?BACKEND_PORT is required}";: "${FRONTEND_PORT:?FRONTEND_PORT is required}";: "${DATABASE_URL:?DATABASE_URL is required}"
+: "${OPENROUTER_API_KEY:?OPENROUTER_API_KEY is required}";: "${OPENROUTER_MODEL:?OPENROUTER_MODEL is required}"
+[ "${OPENROUTER_BASE_URL:-}" = "https://openrouter.ai/api/v1" ]||{ echo "Exact OPENROUTER_BASE_URL is required" >&2;exit 1; }
+[ "$BACKEND_PORT" != "$FRONTEND_PORT" ]||{ echo "Assigned ports must differ" >&2;exit 1; }
+for assigned_port in "$BACKEND_PORT" "$FRONTEND_PORT";do [[ "$assigned_port" =~ ^[0-9]+$ ]]||exit 1;nc -z 127.0.0.1 "$assigned_port" >/dev/null 2>&1&&{ echo "Assigned port $assigned_port is occupied" >&2;exit 1; };done
+[ -d "$PROJECT_DIR/frontend/node_modules" ]&&[ -d "$PROJECT_DIR/runtime" ]||{ echo "Runtime dependencies are missing" >&2;exit 1; }
+export RUNTIME_PROJECT_NAME=realEstateAgency RUNTIME_AI_ENDPOINT=/api/ai/listing-governance-review RUNTIME_AI_FEATURE=listing-governance-review
+export RUNTIME_AI_SYSTEM_PROMPT='You are a real-estate listing governance assistant. Review source facts, fair-housing risks, privacy, representation, pricing evidence, required disclosures, legal review separation, and explicit human publication gates.'
+node "$PROJECT_DIR/runtime/setup.mjs"
+CHILD_PIDS=()
+(cd "$PROJECT_DIR"&&exec node runtime/api.mjs)&CHILD_PIDS+=("$!")
+(cd "$PROJECT_DIR/frontend"&&exec npm run preview -- --host 127.0.0.1 --port "$FRONTEND_PORT" --strictPort)&CHILD_PIDS+=("$!")
+kill_tree(){ local pid="$1" child;for child in $(pgrep -P "$pid" 2>/dev/null||true);do kill_tree "$child";done;kill -TERM "$pid" 2>/dev/null||true; }
+cleanup(){ trap - EXIT INT TERM;for pid in "${CHILD_PIDS[@]}";do kill_tree "$pid";done;for pid in "${CHILD_PIDS[@]}";do wait "$pid" 2>/dev/null||true;done; }
+trap cleanup EXIT INT TERM
+wait "${CHILD_PIDS[@]}"
