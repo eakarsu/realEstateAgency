@@ -96,6 +96,7 @@ for assigned_port in "$BACKEND_PORT" "$FRONTEND_PORT";do [[ "$assigned_port" =~ 
 export RUNTIME_PROJECT_NAME=realEstateAgency RUNTIME_AI_ENDPOINT=/api/ai/listing-governance-review RUNTIME_AI_FEATURE=listing-governance-review
 export RUNTIME_AI_SYSTEM_PROMPT='You are a real-estate listing governance assistant. Review source facts, fair-housing risks, privacy, representation, pricing evidence, required disclosures, legal review separation, and explicit human publication gates.'
 node "$PROJECT_DIR/runtime/setup.mjs"
+(cd "$PROJECT_DIR/frontend" && npm run build)
 CHILD_PIDS=()
 (cd "$PROJECT_DIR"&&exec node runtime/api.mjs)&CHILD_PIDS+=("$!")
 (cd "$PROJECT_DIR/frontend"&&exec npm run preview -- --host 127.0.0.1 --port "$FRONTEND_PORT" --strictPort)&CHILD_PIDS+=("$!")

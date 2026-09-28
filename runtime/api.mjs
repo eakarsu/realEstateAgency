@@ -22,6 +22,10 @@ const server=http.createServer(async(req,res)=>{
   const url=new URL(req.url||'/',`http://127.0.0.1:${port}`);
   try{
     if(req.method==='GET'&&url.pathname==='/api/health')return json(res,200,{status:'ok',project});
+    if(req.method==='GET'&&url.pathname==='/api/auth/demo-credentials'){
+      res.setHeader('Cache-Control','no-store');
+      return json(res,200,{email:String(process.env.PROVISION_ADMIN_EMAIL||process.env.ADMIN_EMAIL||''),password:String(process.env.PROVISION_ADMIN_PASSWORD||process.env.ADMIN_PASSWORD||'')});
+    }
     if(req.method==='POST'&&url.pathname==='/api/auth/login'){
       const body=await readBody(req);const email=String(body.email||'').trim().toLowerCase();const password=String(body.password||'');
       const record=cachedUsers.get(email);if(!record||!verify(password,record.passwordHash))return json(res,401,{error:'Invalid credentials'});

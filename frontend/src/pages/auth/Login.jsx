@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import { BuildingOfficeIcon } from '@heroicons/react/24/outline';
 import { validateForm, validators } from '../../utils/validation';
+import { authAPI } from '../../services/api';
 
 const validationSchema = {
   email: ['required', 'email'],
@@ -100,8 +101,7 @@ export default function Login() {
 
             <button
               type="button"
-              onClick={() => { setEmail(import.meta.env.VITE_DEMO_EMAIL || ''); setPassword(import.meta.env.VITE_DEMO_PASSWORD || ''); }}
-              disabled={!import.meta.env.VITE_DEMO_EMAIL || !import.meta.env.VITE_DEMO_PASSWORD}
+              onClick={async () => { const { data } = await authAPI.demoCredentials(); setEmail(data.email || ''); setPassword(data.password || ''); }}
               aria-label="Auto Fill Demo Credentials"
               style={{ width: '100%', marginBottom: '12px', padding: '10px 14px', borderRadius: '8px', border: '1px solid currentColor', background: 'transparent', cursor: 'pointer' }}
             >
