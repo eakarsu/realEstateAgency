@@ -27,7 +27,7 @@ export default function PropertySearch() {
       if (filters.city) params.city = filters.city;
       if (filters.status) params.status = filters.status;
       const res = await propertiesAPI.getAll(params);
-      setProperties(res.data.properties);
+      setProperties(Array.isArray(res.data?.properties) ? res.data.properties : []);
     } catch (error) { toast.error('Failed to search'); }
     finally { setLoading(false); }
   };
@@ -35,7 +35,7 @@ export default function PropertySearch() {
   const fetchFavorites = async () => {
     try {
       const res = await favoritesAPI.getAll();
-      setFavorites(res.data.map(f => f.propertyId));
+      setFavorites((Array.isArray(res.data) ? res.data : []).map(f => f.propertyId));
     } catch (error) {}
   };
 

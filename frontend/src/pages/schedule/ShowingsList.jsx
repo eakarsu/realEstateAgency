@@ -181,6 +181,16 @@ export default function ShowingsList() {
               </div>
               <form onSubmit={handleAIScheduler} className="p-6 space-y-4">
                 <p className="text-gray-600 text-sm">Let AI suggest the best times for your property showing based on buyer preferences and market patterns.</p>
+                <div className="flex flex-wrap gap-2" aria-label="AI scheduler examples">
+                  {['First available property', 'Another property and lead', 'Lead focused review'].map((label, index) => (
+                    <button key={label} type="button" disabled={aiScheduling} onClick={() => {
+                      const selectedProperty = properties.some(p => p.id === aiSchedulerData.propertyId) ? aiSchedulerData.propertyId : properties[index % properties.length]?.id || '';
+                      const selectedLead = leads.some(l => l.id === aiSchedulerData.leadId) ? aiSchedulerData.leadId : leads[index % leads.length]?.id || '';
+                      setAiSchedulerData({ propertyId: selectedProperty, leadId: selectedLead });
+                      if (!selectedProperty || !selectedLead) toast('Select a real property and lead to complete this example.');
+                    }} className="btn-secondary text-sm">Fill fields · {label}</button>
+                  ))}
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Property</label>
                   <select

@@ -1,3 +1,4 @@
+import FormattedAIReport from "../../components/FormattedAIReport";
 import { useState, useRef, useEffect } from 'react';
 import {
   SparklesIcon,
@@ -444,7 +445,7 @@ export default function AIHub() {
     appraisalPurpose: 'Sale'
   });
 
-  const loadSampleData = (toolId) => {
+  const loadSampleData = (toolId, variant = 0) => {
     switch (toolId) {
       case 'neighborhood-insights':
         setNeighborhoodForm({ city: 'Austin', state: 'TX', zipCode: '78701' });
@@ -503,8 +504,48 @@ export default function AIHub() {
       case 'property-appraiser':
         setAppraiserForm({ address: '1420 Barton Creek Blvd', city: 'Austin', state: 'TX', zipCode: '78735', propertyType: 'Single Family', bedrooms: 4, bathrooms: 3, squareFeet: 2800, lotSize: 10500, yearBuilt: 2015, condition: 'Excellent', recentUpgrades: 'Kitchen remodel 2024, new roof 2023, smart home system, hardwood floors throughout', garage: '2-Car Attached', basement: 'None', pool: true, stories: 2, appraisalPurpose: 'Sale' });
         break;
+      case 'showing-scheduler':
+        setShowingSchedulerForm(previous => ({ ...previous, propertyId: previous.propertyId || properties[0]?.id || '', preferredTimes: variant === 1 ? ['13:00', '14:00'] : variant === 2 ? ['16:00', '17:00'] : ['09:00', '10:00'] }));
+        break;
+      case 'open-house-summary':
+        setOpenHouseSummaryForm(previous => ({ ...previous, openHouseId: previous.openHouseId || openHouses[0]?.id || '' }));
+        break;
     }
-    toast.success('Sample data loaded!');
+    if (variant > 0) {
+      const setters = {
+        'neighborhood-insights': setNeighborhoodForm, 'investment-analyzer': setInvestmentForm,
+        'listing-description': setListingForm, 'virtual-staging': setVirtualStagingForm,
+        'contract-analyzer': setContractForm, 'buyer-persona': setBuyerPersonaForm,
+        'social-post': setSocialPostForm, 'follow-up-sequence': setEmailSequenceForm,
+        'market-analysis': setCmaForm, 'price-predictor': setPricePredictorForm,
+        'lead-qualifier': setLeadQualifierForm, 'property-matcher': setPropertyMatcherForm,
+        'offer-analyzer': setOfferAnalyzerForm, 'virtual-tour-creator': setVirtualTourForm,
+        'rental-price-optimizer': setRentalPriceForm, 'tenant-screener': setTenantScreenerForm,
+        'mortgage-calculator': setMortgageForm, 'investment-property-finder': setInvestmentFinderForm,
+        'property-appraiser': setAppraiserForm,
+      };
+      const setter = setters[toolId];
+      if (setter) setter(previous => {
+        const alternate = (value, key) => {
+          if (/id$|reference|file|upload/i.test(key)) return value;
+          if (Array.isArray(value)) return value.map(item => item && typeof item === 'object' ? Object.fromEntries(Object.entries(item).map(([name, entry]) => [name, alternate(entry, name)])) : item);
+          if (typeof value === 'number' && /price|budget|rent|income|squarefeet|sqft|loanamount/i.test(key)) return Math.round(value * (variant === 1 ? 0.85 : 1.15));
+          if (typeof value !== 'string') return value;
+          if (/^city$/i.test(key)) return variant === 1 ? 'Denver' : 'Portland';
+          if (/^state$/i.test(key)) return variant === 1 ? 'CO' : 'OR';
+          if (/zip/i.test(key)) return variant === 1 ? '80202' : '97205';
+          if (/address/i.test(key)) return variant === 1 ? '1800 Market St, Denver, CO' : '425 NW 10th Ave, Portland, OR';
+          if (/name/i.test(key)) return variant === 1 ? 'Morgan Lee' : 'Taylor Rivera';
+          if (/email/i.test(key)) return variant === 1 ? 'morgan@example.com' : 'taylor@example.com';
+          if (/features|highlights|interests|description|text|preferredareas|recentupgrades/i.test(key)) return variant === 1 ? 'Updated kitchen, walkable neighborhood, efficient layout, and covered parking.' : 'Quiet residential setting, flexible living space, accessible transit, and landscaped yard.';
+          return value;
+        };
+        return Object.fromEntries(Object.entries(previous).map(([key, value]) => [key, alternate(value, key)]));
+      });
+    }
+    if (toolId === 'showing-scheduler' && !properties.length || toolId === 'open-house-summary' && !openHouses.length) {
+      toast('Select or create a real record before generating.');
+    } else toast.success('Example fields loaded. Generate separately.');
   };
 
   const filteredTools = selectedCategory === 'all'
@@ -4205,7 +4246,7 @@ export default function AIHub() {
     return (
       <div className="mt-6 bg-gray-50 p-4 rounded-lg">
         <h4 className="font-medium mb-3">Results</h4>
-        <pre className="text-sm overflow-auto bg-white p-4 rounded border">{JSON.stringify(result, null, 2)}</pre>
+        <FormattedAIReport response={result} />
       </div>
     );
   };
@@ -4283,6 +4324,14 @@ export default function AIHub() {
             </button>
           </div>
 
+          <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3">
+            <p className="mb-2 text-sm text-gray-700">Fill a fictional scenario. Generation remains a separate action; existing record selections are kept.</p>
+            <div className="flex flex-wrap gap-2">
+              {['Local review', 'Urban buyer', 'Detailed planning'].map((name, index) => (
+                <button key={name} type="button" disabled={loading} onClick={() => loadSampleData(selectedTool.id, index)} className="rounded border border-blue-300 bg-white px-3 py-2 text-sm text-blue-800">Fill all fields · {name}</button>
+              ))}
+            </div>
+          </div>
           {renderToolForm()}
           {renderResult()}
         </div>

@@ -1,5 +1,6 @@
 import { XMarkIcon, SparklesIcon, ClipboardDocumentIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { useState } from 'react';
+import FormattedAIReport from './FormattedAIReport.jsx';
 
 export default function AIResponseModal({ isOpen, onClose, title, data, type = 'default' }) {
   const [copied, setCopied] = useState(false);
@@ -99,47 +100,7 @@ export default function AIResponseModal({ isOpen, onClose, title, data, type = '
         );
 
       case 'market-report':
-        return (
-          <div className="space-y-6">
-            {/* Stats Grid */}
-            {data.data && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div className="bg-blue-50 rounded-lg p-3 text-center">
-                  <p className="text-2xl font-bold text-blue-600">{data.data.activeListings}</p>
-                  <p className="text-xs text-gray-500">Active Listings</p>
-                </div>
-                <div className="bg-green-50 rounded-lg p-3 text-center">
-                  <p className="text-2xl font-bold text-green-600">{data.data.recentSales}</p>
-                  <p className="text-xs text-gray-500">Recent Sales</p>
-                </div>
-                <div className="bg-purple-50 rounded-lg p-3 text-center">
-                  <p className="text-2xl font-bold text-purple-600">${(data.data.avgSoldPrice / 1000).toFixed(0)}K</p>
-                  <p className="text-xs text-gray-500">Avg Sold Price</p>
-                </div>
-                <div className="bg-orange-50 rounded-lg p-3 text-center">
-                  <p className="text-2xl font-bold text-orange-600">{data.data.avgDaysOnMarket}</p>
-                  <p className="text-xs text-gray-500">Avg DOM</p>
-                </div>
-              </div>
-            )}
-
-            {/* Analysis Text */}
-            <div>
-              <h4 className="font-semibold text-gray-700 mb-2">Market Analysis</h4>
-              <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
-                <p className="text-gray-600 whitespace-pre-wrap">{data.analysis}</p>
-              </div>
-            </div>
-
-            <button
-              onClick={() => copyToClipboard(data.analysis)}
-              className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800"
-            >
-              {copied ? <CheckIcon className="h-4 w-4" /> : <ClipboardDocumentIcon className="h-4 w-4" />}
-              {copied ? 'Copied!' : 'Copy analysis'}
-            </button>
-          </div>
-        );
+        return <FormattedAIReport response={{ statistics: data.data, analysis: data.analysis ?? '' }} title={title || 'Market report'} />;
 
       case 'social-post':
         return (
@@ -538,13 +499,7 @@ export default function AIResponseModal({ isOpen, onClose, title, data, type = '
         );
 
       default:
-        return (
-          <div className="bg-gray-50 rounded-lg p-4">
-            <pre className="text-sm text-gray-600 whitespace-pre-wrap">
-              {typeof data === 'string' ? data : JSON.stringify(data, null, 2)}
-            </pre>
-          </div>
-        );
+        return <FormattedAIReport response={data} title={title || 'AI response'} />;
     }
   };
 

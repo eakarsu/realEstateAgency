@@ -1,3 +1,6 @@
+
+import FullAIExamples, { useFullAIExamples } from "../../components/FullAIExamples.jsx";
+import FormattedAIReport from '../../components/FormattedAIReport.jsx';
 import { useState } from 'react';
 import { aiAPI } from '../../services/api';
 import {
@@ -31,14 +34,14 @@ function ResultBlock({ result }) {
   return (
     <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mt-4">
       <h4 className="font-semibold text-sm mb-2 text-gray-700">Result</h4>
-      <pre className="text-xs whitespace-pre-wrap text-gray-800 max-h-96 overflow-auto">
-        {typeof result === 'string' ? result : JSON.stringify(result, null, 2)}
-      </pre>
+      <FormattedAIReport response={result} />
     </div>
   );
 }
 
 function ComparableAnalysisForm() {
+  const fullAIExamples = useFullAIExamples();
+
   const [subject, setSubject] = useState(JSON.stringify({
     address: '123 Main St, Anytown',
     bedrooms: 3,
@@ -76,14 +79,22 @@ function ComparableAnalysisForm() {
   };
 
   return (
-    <form onSubmit={submit} className="space-y-4">
+    <form onSubmit={submit} className="space-y-4" data-full-ai-workspace="ComparableAnalysisForm"><FullAIExamples controller={fullAIExamples} disabled={Boolean(loading)} />
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Subject Property (JSON)</label>
         <textarea
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
           rows={8}
-          className="w-full font-mono text-xs border rounded-lg px-3 py-2"
+          className="w-full font-mono text-xs border rounded-lg px-3 py-2" data-full-ai-field={fullAIExamples.bind({ current: subject, change: (e) => setSubject(e.target.value), label: "subject", manual: false, json: false, sample: JSON.stringify({
+    address: '123 Main St, Anytown',
+    bedrooms: 3,
+    bathrooms: 2,
+    squareFeet: 1800,
+    yearBuilt: 1998,
+    lotSize: 0.25,
+    features: ['updated kitchen', 'finished basement'],
+  }, null, 2) }, "p1-2772", undefined)}
         />
       </div>
       <div>
@@ -92,7 +103,10 @@ function ComparableAnalysisForm() {
           value={comps}
           onChange={(e) => setComps(e.target.value)}
           rows={8}
-          className="w-full font-mono text-xs border rounded-lg px-3 py-2"
+          className="w-full font-mono text-xs border rounded-lg px-3 py-2" data-full-ai-field={fullAIExamples.bind({ current: comps, change: (e) => setComps(e.target.value), label: "comps", manual: false, json: false, sample: JSON.stringify([
+    { address: '120 Main St', soldPrice: 425000, soldDate: '2025-12-01', bedrooms: 3, bathrooms: 2, squareFeet: 1750 },
+    { address: '300 Oak Ave', soldPrice: 449000, soldDate: '2026-01-15', bedrooms: 3, bathrooms: 2.5, squareFeet: 1900 },
+  ], null, 2) }, "p1-3111", undefined)}
         />
       </div>
       {error && (
@@ -112,6 +126,8 @@ function ComparableAnalysisForm() {
 }
 
 function ComplianceCheckerForm() {
+  const fullAIExamples = useFullAIExamples();
+
   const [content, setContent] = useState('');
   const [contentType, setContentType] = useState('listing');
   const [jurisdiction, setJurisdiction] = useState('');
@@ -137,11 +153,11 @@ function ComplianceCheckerForm() {
   };
 
   return (
-    <form onSubmit={submit} className="space-y-4">
+    <form onSubmit={submit} className="space-y-4" data-full-ai-workspace="ComplianceCheckerForm"><FullAIExamples controller={fullAIExamples} disabled={Boolean(loading)} />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Content Type</label>
-          <select value={contentType} onChange={(e) => setContentType(e.target.value)} className="w-full border rounded-lg px-3 py-2">
+          <select value={contentType} onChange={(e) => setContentType(e.target.value)} className="w-full border rounded-lg px-3 py-2" data-full-ai-field={fullAIExamples.bind({ current: contentType, change: (e) => setContentType(e.target.value), label: "contentType", manual: false, json: false, sample: 'listing' }, "p1-5017", undefined)}>
             <option value="listing">Listing Description</option>
             <option value="disclosure">Disclosure</option>
             <option value="contract">Contract</option>
@@ -155,7 +171,7 @@ function ComplianceCheckerForm() {
             value={jurisdiction}
             onChange={(e) => setJurisdiction(e.target.value)}
             placeholder="e.g., California, FHA"
-            className="w-full border rounded-lg px-3 py-2"
+            className="w-full border rounded-lg px-3 py-2" data-full-ai-field={fullAIExamples.bind({ current: jurisdiction, change: (e) => setJurisdiction(e.target.value), label: "jurisdiction", manual: false, json: false, sample: 'California' }, "p1-5598", undefined)}
           />
         </div>
       </div>
@@ -166,7 +182,7 @@ function ComplianceCheckerForm() {
           onChange={(e) => setContent(e.target.value)}
           rows={10}
           placeholder="Paste listing copy, disclosure, contract clause, etc."
-          className="w-full text-sm border rounded-lg px-3 py-2"
+          className="w-full text-sm border rounded-lg px-3 py-2" data-full-ai-field={fullAIExamples.bind({ current: content, change: (e) => setContent(e.target.value), label: "content", manual: false, json: false, sample: 'Spacious three bedroom home near downtown with updated kitchen, covered patio, and two car garage. Buyer should verify all measurements and local disclosure requirements.' }, "p1-5965", undefined)}
         />
       </div>
       {error && (

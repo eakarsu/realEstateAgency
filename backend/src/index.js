@@ -68,6 +68,8 @@ function createApp({ prisma, providerTransport, passwordResetNotifier, allowTest
   app.use('/api/notifications', require('./routes/notifications'));
   app.use('/api/messages', require('./routes/messages'));
   app.use('/api/exports', require('./routes/exports'));
+  app.use('/api/ai', require('./routes/ai'));
+  app.use('/api/ai', require('./routes/aiExtras'));
 
   app.use('/uploads', express.static(path.resolve(__dirname, '../uploads'), { dotfiles: 'deny', index: false }));
   const staticDir = path.resolve(__dirname, '../../frontend/dist');

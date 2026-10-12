@@ -1,3 +1,6 @@
+
+import FullAIExamples, { useFullAIExamples } from "../../components/FullAIExamples.jsx";
+import FormattedAIReport from '../../components/FormattedAIReport.jsx';
 import { useState } from 'react';
 import { aiAPI } from '../../services/api';
 import {
@@ -48,14 +51,14 @@ function ResultBlock({ result }) {
   return (
     <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mt-4">
       <h4 className="font-semibold text-sm mb-2 text-gray-700">Result</h4>
-      <pre className="text-xs whitespace-pre-wrap text-gray-800 max-h-96 overflow-auto">
-        {typeof result === 'string' ? result : JSON.stringify(result, null, 2)}
-      </pre>
+      <FormattedAIReport response={result} />
     </div>
   );
 }
 
 function PredictiveLeadScoringForm() {
+  const fullAIExamples = useFullAIExamples();
+
   const [leads, setLeads] = useState(JSON.stringify([
     { leadId: 'L-1', name: 'Alice', budget: 600000, timeline: '0-3 months', preApproved: true, sourceEngagement: 8 },
     { leadId: 'L-2', name: 'Bob', budget: 350000, timeline: '6-12 months', preApproved: false, sourceEngagement: 3 },
@@ -88,16 +91,22 @@ function PredictiveLeadScoringForm() {
   };
 
   return (
-    <form onSubmit={submit} className="space-y-4">
+    <form onSubmit={submit} className="space-y-4" data-full-ai-workspace="PredictiveLeadScoringForm"><FullAIExamples controller={fullAIExamples} disabled={Boolean(loading)} />
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Leads (JSON array)</label>
         <textarea value={leads} onChange={(e) => setLeads(e.target.value)} rows={10}
-          className="w-full font-mono text-xs border rounded-lg px-3 py-2" />
+          className="w-full font-mono text-xs border rounded-lg px-3 py-2" data-full-ai-field={fullAIExamples.bind({ current: leads, change: (e) => setLeads(e.target.value), label: "leads", manual: false, json: false, sample: JSON.stringify([
+    { leadId: 'L-1', name: 'Alice', budget: 600000, timeline: '0-3 months', preApproved: true, sourceEngagement: 8 },
+    { leadId: 'L-2', name: 'Bob', budget: 350000, timeline: '6-12 months', preApproved: false, sourceEngagement: 3 },
+  ], null, 2) }, "p1-3196", undefined)} />
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Historical Deals Context (optional, JSON)</label>
         <textarea value={historicalContext} onChange={(e) => setHistoricalContext(e.target.value)} rows={6}
-          className="w-full font-mono text-xs border rounded-lg px-3 py-2" />
+          className="w-full font-mono text-xs border rounded-lg px-3 py-2" data-full-ai-field={fullAIExamples.bind({ current: historicalContext, change: (e) => setHistoricalContext(e.target.value), label: "historicalContext", manual: false, json: false, sample: JSON.stringify({
+    avgCloseRateBySource: { Zillow: 0.06, Referral: 0.18, Web: 0.04 },
+    avgDaysToClose: 42,
+  }, null, 2) }, "p1-3506", undefined)} />
       </div>
       {error && (
         <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">{error}</div>
@@ -113,6 +122,8 @@ function PredictiveLeadScoringForm() {
 }
 
 function BuyerJourneyPersonalizationForm() {
+  const fullAIExamples = useFullAIExamples();
+
   const [buyer, setBuyer] = useState(JSON.stringify({
     id: 'B-100',
     name: 'Carol',
@@ -158,11 +169,11 @@ function BuyerJourneyPersonalizationForm() {
   };
 
   return (
-    <form onSubmit={submit} className="space-y-4">
+    <form onSubmit={submit} className="space-y-4" data-full-ai-workspace="BuyerJourneyPersonalizationForm"><FullAIExamples controller={fullAIExamples} disabled={Boolean(loading)} />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Stage</label>
-          <select value={stage} onChange={(e) => setStage(e.target.value)} className="w-full border rounded-lg px-3 py-2">
+          <select value={stage} onChange={(e) => setStage(e.target.value)} className="w-full border rounded-lg px-3 py-2" data-full-ai-field={fullAIExamples.bind({ current: stage, change: (e) => setStage(e.target.value), label: "stage", manual: false, json: false, sample: 'exploring' }, "p1-6422", undefined)}>
             <option value="awareness">Awareness</option>
             <option value="exploring">Exploring</option>
             <option value="touring">Touring</option>
@@ -173,20 +184,32 @@ function BuyerJourneyPersonalizationForm() {
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Allowed Channels (comma-separated)</label>
-          <input value={channels} onChange={(e) => setChannels(e.target.value)} className="w-full border rounded-lg px-3 py-2" placeholder="email,sms" />
+          <input value={channels} onChange={(e) => setChannels(e.target.value)} className="w-full border rounded-lg px-3 py-2" placeholder="email,sms" data-full-ai-field={fullAIExamples.bind({ current: channels, change: (e) => setChannels(e.target.value), label: "channels", manual: false, json: false, sample: 'email,sms' }, "p1-7057", undefined)} />
         </div>
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Buyer (JSON)</label>
-        <textarea value={buyer} onChange={(e) => setBuyer(e.target.value)} rows={8} className="w-full font-mono text-xs border rounded-lg px-3 py-2" />
+        <textarea value={buyer} onChange={(e) => setBuyer(e.target.value)} rows={8} className="w-full font-mono text-xs border rounded-lg px-3 py-2" data-full-ai-field={fullAIExamples.bind({ current: buyer, change: (e) => setBuyer(e.target.value), label: "buyer", manual: false, json: false, sample: JSON.stringify({
+    id: 'B-100',
+    name: 'Carol',
+    budget: 500000,
+    preferredAreas: ['Downtown', 'Riverside'],
+    propertyType: 'Single-family',
+    bedrooms: 3,
+  }, null, 2) }, "p1-7342", undefined)} />
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Recent Interactions (JSON array)</label>
-        <textarea value={recentInteractions} onChange={(e) => setRecentInteractions(e.target.value)} rows={6} className="w-full font-mono text-xs border rounded-lg px-3 py-2" />
+        <textarea value={recentInteractions} onChange={(e) => setRecentInteractions(e.target.value)} rows={6} className="w-full font-mono text-xs border rounded-lg px-3 py-2" data-full-ai-field={fullAIExamples.bind({ current: recentInteractions, change: (e) => setRecentInteractions(e.target.value), label: "recentInteractions", manual: false, json: false, sample: JSON.stringify([
+    { type: 'open-house', when: '2026-04-30', notes: 'Liked the kitchen, worried about commute' },
+    { type: 'email-open', when: '2026-05-02' },
+  ], null, 2) }, "p1-7632", undefined)} />
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Property Shortlist (JSON array)</label>
-        <textarea value={shortlist} onChange={(e) => setShortlist(e.target.value)} rows={5} className="w-full font-mono text-xs border rounded-lg px-3 py-2" />
+        <textarea value={shortlist} onChange={(e) => setShortlist(e.target.value)} rows={5} className="w-full font-mono text-xs border rounded-lg px-3 py-2" data-full-ai-field={fullAIExamples.bind({ current: shortlist, change: (e) => setShortlist(e.target.value), label: "shortlist", manual: false, json: false, sample: JSON.stringify([
+    { mlsId: 'MLS-101', address: '123 Oak St', price: 489000 },
+  ], null, 2) }, "p1-7947", undefined)} />
       </div>
       {error && (
         <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">{error}</div>
@@ -202,6 +225,8 @@ function BuyerJourneyPersonalizationForm() {
 }
 
 function PipelineForecastForm() {
+  const fullAIExamples = useFullAIExamples();
+
   const [pipeline, setPipeline] = useState(JSON.stringify([
     { dealId: 'D-1', stage: 'under-contract', listPrice: 480000, expectedCloseDate: '2026-06-01', probability: 0.85 },
     { dealId: 'D-2', stage: 'offer-out', listPrice: 720000, expectedCloseDate: '2026-07-15', probability: 0.4 },
@@ -237,23 +262,31 @@ function PipelineForecastForm() {
   };
 
   return (
-    <form onSubmit={submit} className="space-y-4">
+    <form onSubmit={submit} className="space-y-4" data-full-ai-workspace="PipelineForecastForm"><FullAIExamples controller={fullAIExamples} disabled={Boolean(loading)} />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Horizon (months, 1-24)</label>
           <input type="number" min="1" max="24" value={horizonMonths} onChange={(e) => setHorizonMonths(e.target.value)}
-            className="w-full border rounded-lg px-3 py-2" />
+            className="w-full border rounded-lg px-3 py-2" data-full-ai-field={fullAIExamples.bind({ current: horizonMonths, change: (e) => setHorizonMonths(e.target.value), label: "horizonMonths", manual: false, json: false, sample: 3 }, "p1-10525", undefined)} />
         </div>
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Pipeline (JSON array)</label>
         <textarea value={pipeline} onChange={(e) => setPipeline(e.target.value)} rows={10}
-          className="w-full font-mono text-xs border rounded-lg px-3 py-2" />
+          className="w-full font-mono text-xs border rounded-lg px-3 py-2" data-full-ai-field={fullAIExamples.bind({ current: pipeline, change: (e) => setPipeline(e.target.value), label: "pipeline", manual: false, json: false, sample: JSON.stringify([
+    { dealId: 'D-1', stage: 'under-contract', listPrice: 480000, expectedCloseDate: '2026-06-01', probability: 0.85 },
+    { dealId: 'D-2', stage: 'offer-out', listPrice: 720000, expectedCloseDate: '2026-07-15', probability: 0.4 },
+    { dealId: 'D-3', stage: 'showing', listPrice: 350000, expectedCloseDate: '2026-08-30', probability: 0.2 },
+  ], null, 2) }, "p1-10848", undefined)} />
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Commission Structure (JSON, optional)</label>
         <textarea value={commissionStructure} onChange={(e) => setCommissionStructure(e.target.value)} rows={5}
-          className="w-full font-mono text-xs border rounded-lg px-3 py-2" />
+          className="w-full font-mono text-xs border rounded-lg px-3 py-2" data-full-ai-field={fullAIExamples.bind({ current: commissionStructure, change: (e) => setCommissionStructure(e.target.value), label: "commissionStructure", manual: false, json: false, sample: JSON.stringify({
+    sellSidePct: 0.025,
+    buySidePct: 0.025,
+    splitToAgent: 0.7,
+  }, null, 2) }, "p1-11160", undefined)} />
       </div>
       {error && (
         <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">{error}</div>

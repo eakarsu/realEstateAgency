@@ -30,7 +30,7 @@ export default function PropertiesList() {
   });
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortOrder, setSortOrder] = useState('desc');
-  const [pagination, setPagination] = useState({ page: 1, limit: 12, total: 0 });
+  const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0 });
 
   const {
     selectedIds,
@@ -56,7 +56,7 @@ export default function PropertiesList() {
         page: pagination.page,
         limit: pagination.limit
       });
-      setProperties(res.data.properties);
+      setProperties(Array.isArray(res.data?.properties) ? res.data.properties : []);
       setPagination(prev => ({ ...prev, total: res.data.total }));
     } catch (error) {
       toast.error('Failed to load properties');

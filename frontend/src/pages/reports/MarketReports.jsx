@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { marketReportsAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import AIResponseModal from '../../components/AIResponseModal';
+import FormattedAIReport from '../../components/FormattedAIReport';
 import { PlusIcon, ChartBarIcon } from '@heroicons/react/24/outline';
 
 export default function MarketReports() {
@@ -11,7 +12,7 @@ export default function MarketReports() {
   const [area, setArea] = useState('');
   const [aiModal, setAiModal] = useState({ isOpen: false, data: null });
 
-  useEffect(() => { marketReportsAPI.getAll().then(res => setReports(res.data.reports)).finally(() => setLoading(false)); }, []);
+  useEffect(() => { marketReportsAPI.getAll().then(res => setReports(Array.isArray(res.data?.reports) ? res.data.reports : [])).catch(() => toast.error('Failed to load reports')).finally(() => setLoading(false)); }, []);
 
   const handleGenerate = async (e) => {
     e.preventDefault();
@@ -46,15 +47,7 @@ export default function MarketReports() {
               <h2 className="text-lg font-semibold">{report.title}</h2>
               <span className="text-sm text-gray-500">{new Date(report.reportDate).toLocaleDateString()}</span>
             </div>
-            {report.data && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                <div className="text-center p-3 bg-gray-50 rounded-lg"><p className="text-2xl font-bold">{report.data.activeListings}</p><p className="text-xs text-gray-500">Active Listings</p></div>
-                <div className="text-center p-3 bg-gray-50 rounded-lg"><p className="text-2xl font-bold">{report.data.recentSales}</p><p className="text-xs text-gray-500">Recent Sales</p></div>
-                <div className="text-center p-3 bg-gray-50 rounded-lg"><p className="text-2xl font-bold">${(report.data.avgSoldPrice / 1000).toFixed(0)}K</p><p className="text-xs text-gray-500">Avg Sold Price</p></div>
-                <div className="text-center p-3 bg-gray-50 rounded-lg"><p className="text-2xl font-bold">{report.data.avgDaysOnMarket}</p><p className="text-xs text-gray-500">Avg DOM</p></div>
-              </div>
-            )}
-            {report.analysis && <p className="text-gray-700 whitespace-pre-wrap text-sm">{report.analysis}</p>}
+            <FormattedAIReport response={{ statistics: report.data, analysis: report.analysis ?? '' }} title={`${report.title} · saved report`} />
           </div>
         ))}
         {reports.length === 0 && <div className="text-center py-12 text-gray-500 card">No reports yet. Generate one above!</div>}

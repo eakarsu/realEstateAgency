@@ -17,6 +17,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
+  const [demoError, setDemoError] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -101,12 +102,25 @@ export default function Login() {
 
             <button
               type="button"
-              onClick={async () => { const { data } = await authAPI.demoCredentials(); setEmail(data.email || ''); setPassword(data.password || ''); }}
-              aria-label="Auto Fill Demo Credentials"
+              disabled={loading}
+              onClick={async () => {
+                setDemoError('');
+                try {
+                  const { data } = await authAPI.demoCredentials();
+                  setEmail(data.email);
+                  setPassword(data.password);
+                  setErrors({});
+                  setTouched({});
+                } catch (error) {
+                  setDemoError(error.response?.data?.error || 'Demo credentials are unavailable');
+                }
+              }}
+              aria-label="Fill demo credentials"
               style={{ width: '100%', marginBottom: '12px', padding: '10px 14px', borderRadius: '8px', border: '1px solid currentColor', background: 'transparent', cursor: 'pointer' }}
             >
-              Auto Fill Demo Credentials
+              Fill demo credentials
             </button>
+            {demoError && <p role="alert" className="text-sm text-red-600">{demoError}</p>}
             <button
               type="submit"
               disabled={loading}

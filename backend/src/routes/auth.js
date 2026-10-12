@@ -37,6 +37,26 @@ function signToken(user) {
   });
 }
 
+// Demo autofill is available only to a browser on the same machine in local development.
+// Verify the configured credentials against an existing account before returning them.
+router.get('/demo-credentials', async (req, res, next) => {
+  try {
+    const local = ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.ip);
+    const localHost = /^(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/i.test(req.headers.host || '');
+    const origin = req.headers.origin || '';
+    const localOrigin = !origin || /^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/i.test(origin);
+    if (process.env.NODE_ENV === 'production' || !local || !localHost || !localOrigin) return res.status(404).json({ error: 'Demo autofill is unavailable' });
+    const email = normalizeEmail(process.env.DEMO_EMAIL);
+    const password = process.env.DEMO_PASSWORD || '';
+    if (!email || !password) return res.status(503).json({ error: 'Demo credentials are not configured' });
+    const user = await req.app.get('prisma').user.findUnique({ where: { email } });
+    if (!user?.isActive || !await bcrypt.compare(password, user.password)) {
+      return res.status(503).json({ error: 'The configured demo account is unavailable' });
+    }
+    res.set('Cache-Control', 'no-store').json({ email, password });
+  } catch (error) { next(error); }
+});
+
 router.post('/register', async (req, res, next) => {
   try {
     const email = normalizeEmail(req.body.email);

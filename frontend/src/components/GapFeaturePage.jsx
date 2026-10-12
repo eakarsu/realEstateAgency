@@ -1,8 +1,11 @@
 // === Batch 11 Gaps & Frontend Mounts ===
 // Generic Gap-feature page for realEstateAgency
 import { useState } from 'react'
+import FormattedAIReport from './FormattedAIReport.jsx'
+import FullAIExamples, { useFullAIExamples } from './FullAIExamples.jsx'
 
 export default function GapFeaturePage({ title, description, slug, endpoint, fields = [], aiResultKey }) {
+  const fullAIExamples = useFullAIExamples()
   const [form, setForm] = useState(() => Object.fromEntries(fields.map(f => [f.name, f.defaultValue || ''])))
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
@@ -34,10 +37,10 @@ export default function GapFeaturePage({ title, description, slug, endpoint, fie
     } catch (err) { setError(err.message) } finally { setLoading(false) }
   }
 
-  const responseText = result ? (result[aiResultKey] || result.proposal || result.report || result.spec || result.minutes || result.explanation || JSON.stringify(result, null, 2)) : ''
+  const responseText = result ? ([result[aiResultKey], result.proposal, result.report, result.spec, result.minutes, result.explanation].find(value => value !== undefined && value !== null) ?? result) : ''
 
   const copy = () => {
-    if (!responseText) return
+    if (responseText === null || responseText === undefined) return
     navigator.clipboard.writeText(typeof responseText === 'string' ? responseText : JSON.stringify(responseText))
     setCopied(true); setTimeout(() => setCopied(false), 1500)
   }
@@ -46,14 +49,15 @@ export default function GapFeaturePage({ title, description, slug, endpoint, fie
     <div style={{ maxWidth: 900, margin: '0 auto', padding: 16 }}>
       <h1 style={{ fontSize: 22, fontWeight: 700 }}>{title}</h1>
       <p style={{ color: '#666', marginBottom: 16 }}>{description}</p>
-      <form onSubmit={submit} style={{ background: '#fff', border: '1px solid #eee', borderRadius: 12, padding: 20 }}>
+      <form onSubmit={submit} data-full-ai-workspace={slug} style={{ background: '#fff', border: '1px solid #eee', borderRadius: 12, padding: 20 }}>
+        <FullAIExamples controller={fullAIExamples} disabled={loading} />
         {fields.map(f => (
           <div key={f.name} style={{ marginBottom: 12 }}>
             <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>{f.label}{f.required ? ' *' : ''}</label>
             {f.type === 'textarea' ? (
-              <textarea value={form[f.name]} onChange={e => update(f.name, e.target.value)} placeholder={f.placeholder || ''} rows={f.rows || 4} style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6, fontSize: 13 }} />
+              <textarea value={form[f.name]} onChange={e => update(f.name, e.target.value)} data-full-ai-field={fullAIExamples.bind({ current: form[f.name], change: e => update(f.name, e.target.value), label: f.name, sample: f.defaultValue || f.placeholder, json: f.type === 'json' }, f.name)} placeholder={f.placeholder || ''} rows={f.rows || 4} style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6, fontSize: 13 }} />
             ) : (
-              <input type={f.type === 'number' ? 'number' : 'text'} value={form[f.name]} onChange={e => update(f.name, e.target.value)} placeholder={f.placeholder || ''} style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6, fontSize: 13 }} />
+              <input type={f.type === 'number' ? 'number' : 'text'} value={form[f.name]} onChange={e => update(f.name, e.target.value)} data-full-ai-field={fullAIExamples.bind({ current: form[f.name], change: e => update(f.name, e.target.value), label: f.name, sample: f.defaultValue || f.placeholder, json: f.type === 'json' }, f.name)} placeholder={f.placeholder || ''} style={{ width: '100%', padding: 8, border: '1px solid #ddd', borderRadius: 6, fontSize: 13 }} />
             )}
             {f.hint && <div style={{ fontSize: 10, color: '#999', marginTop: 2 }}>{f.hint}</div>}
           </div>
@@ -67,7 +71,7 @@ export default function GapFeaturePage({ title, description, slug, endpoint, fie
             <strong style={{ fontSize: 13 }}>Result</strong>
             <button onClick={copy} style={{ fontSize: 11, background: 'transparent', border: '1px solid #ddd', padding: '2px 8px', borderRadius: 4, cursor: 'pointer' }}>{copied ? 'Copied' : 'Copy'}</button>
           </div>
-          <pre style={{ whiteSpace: 'pre-wrap', fontSize: 12, background: '#f8f9fa', padding: 12, borderRadius: 6, overflow: 'auto' }}>{typeof responseText === 'string' ? responseText : JSON.stringify(result, null, 2)}</pre>
+          <FormattedAIReport response={responseText} />
         </div>
       )}
     </div>
