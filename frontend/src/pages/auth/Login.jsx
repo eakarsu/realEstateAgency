@@ -4,7 +4,6 @@ import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import { BuildingOfficeIcon } from '@heroicons/react/24/outline';
 import { validateForm, validators } from '../../utils/validation';
-import { authAPI } from '../../services/api';
 
 const validationSchema = {
   email: ['required', 'email'],
@@ -18,6 +17,8 @@ export default function Login() {
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
   const [demoError, setDemoError] = useState('');
+  const demoEmail = import.meta.env.VITE_DEMO_EMAIL;
+  const demoPassword = import.meta.env.VITE_DEMO_PASSWORD;
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -100,27 +101,15 @@ export default function Login() {
               {touched.password && errors.password && <p className="mt-1 text-sm text-red-600">{errors.password}</p>}
             </div>
 
-            <button
-              type="button"
-              disabled={loading}
-              onClick={async () => {
-                setDemoError('');
-                try {
-                  const { data } = await authAPI.demoCredentials();
-                  setEmail(data.email);
-                  setPassword(data.password);
-                  setErrors({});
-                  setTouched({});
-                } catch (error) {
-                  setDemoError(error.response?.data?.error || 'Demo credentials are unavailable');
-                }
-              }}
-              aria-label="Fill demo credentials"
-              style={{ width: '100%', marginBottom: '12px', padding: '10px 14px', borderRadius: '8px', border: '1px solid currentColor', background: 'transparent', cursor: 'pointer' }}
-            >
-              Fill demo credentials
-            </button>
-            {demoError && <p role="alert" className="text-sm text-red-600">{demoError}</p>}
+            {demoError && <p className="text-red-600 text-sm">{demoError}</p>}
+              <button
+                type="button"
+                onClick={async () => { if (demoEmail && demoPassword) { setEmail(demoEmail); setPassword(demoPassword); setErrors({}); setTouched({}); return; } try { const res = await fetch('/api/auth/demo-credentials', { cache: 'no-store' }); if (res.ok) { const data = await res.json(); if (data?.email && data?.password) { setEmail(data.email); setPassword(data.password); setErrors({}); setTouched({}); return; } } } catch {} setDemoError("Demo credentials are not configured for this environment."); }}
+                aria-label="Fill demo credentials"
+                style={{ width: '100%', marginBottom: '12px', padding: '10px 14px', borderRadius: '8px', border: '1px solid currentColor', background: 'transparent', cursor: 'pointer' }}
+              >
+                Fill demo credentials
+              </button>
             <button
               type="submit"
               disabled={loading}

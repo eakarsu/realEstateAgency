@@ -74,6 +74,8 @@ else
   unset VITE_DEMO_EMAIL VITE_DEMO_PASSWORD VITE_DEMO_TENANT
   unset REACT_APP_DEMO_EMAIL REACT_APP_DEMO_PASSWORD REACT_APP_DEMO_TENANT
 fi
+demo_bridge_email="$demo_credentials_email"
+demo_bridge_password="$demo_credentials_password"
 unset demo_credentials_email demo_credentials_password demo_credentials_tenant demo_credentials_project_dir demo_credentials_line demo_credentials_key demo_credentials_value demo_credentials_first demo_credentials_last
 
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -92,13 +94,52 @@ esac
 [ "${OPENROUTER_BASE_URL:-}" = "https://openrouter.ai/api/v1" ]||{ echo "Exact OPENROUTER_BASE_URL is required" >&2;exit 1; }
 [ "$BACKEND_PORT" != "$FRONTEND_PORT" ]||{ echo "Assigned ports must differ" >&2;exit 1; }
 for assigned_port in "$BACKEND_PORT" "$FRONTEND_PORT";do [[ "$assigned_port" =~ ^[0-9]+$ ]]||exit 1;nc -z 127.0.0.1 "$assigned_port" >/dev/null 2>&1&&{ echo "Assigned port $assigned_port is occupied" >&2;exit 1; };done
-[ -d "$PROJECT_DIR/frontend/node_modules" ]&&[ -d "$PROJECT_DIR/runtime" ]||{ echo "Runtime dependencies are missing" >&2;exit 1; }
-export RUNTIME_PROJECT_NAME=realEstateAgency RUNTIME_AI_ENDPOINT=/api/ai/listing-governance-review RUNTIME_AI_FEATURE=listing-governance-review
-export RUNTIME_AI_SYSTEM_PROMPT='You are a real-estate listing governance assistant. Review source facts, fair-housing risks, privacy, representation, pricing evidence, required disclosures, legal review separation, and explicit human publication gates.'
-node "$PROJECT_DIR/runtime/setup.mjs"
+[ -d "$PROJECT_DIR/frontend/node_modules" ]&&[ -d "$PROJECT_DIR/backend/node_modules" ]||{ echo "Runtime dependencies are missing" >&2;exit 1; }
+: "${JWT_SECRET:?JWT_SECRET is required}"
+export PORT="$BACKEND_PORT"
+FRONTEND_ORIGIN="http://127.0.0.1:$FRONTEND_PORT"
+case ",${CORS_ORIGINS:-}," in *'*'*) echo "CORS_ORIGINS must not contain a wildcard" >&2;exit 1 ;; esac
+case ",${CORS_ORIGINS:-}," in *,"$FRONTEND_ORIGIN",*) ;; *) export CORS_ORIGINS="${CORS_ORIGINS:+$CORS_ORIGINS,}$FRONTEND_ORIGIN" ;; esac
+export CORS_ORIGINS
+if [ "${NODE_ENV:-development}" != production ] && [ -n "$demo_bridge_email" ] && [ -n "$demo_bridge_password" ]; then
+  export DEMO_EMAIL="$demo_bridge_email"
+  export DEMO_PASSWORD="$demo_bridge_password"
+fi
+unset demo_bridge_email demo_bridge_password
+# Ensure the Prisma schema exists before provisioning: a database whose
+# _prisma_migrations record survived a reset reports migrations as applied
+# while the application tables are missing, so migrate deploy alone is a no-op.
+schema_ready="$(cd "$PROJECT_DIR/backend" && node -e 'const {PrismaClient}=require("@prisma/client");const p=new PrismaClient();p.$queryRawUnsafe("SELECT 1 FROM information_schema.tables WHERE table_schema = '"'"'public'"'"' AND table_name = '"'"'users'"'"'").then((rows)=>{console.log(rows.length?"yes":"no")}).catch(()=>{console.log("no")}).finally(()=>p.$disconnect());' 2>/dev/null || echo no)"
+if [ "$schema_ready" != "yes" ]; then
+  echo "Application schema missing in DATABASE_URL database; replaying Prisma migrations to recreate tables" >&2
+  for migration_sql in "$PROJECT_DIR"/backend/prisma/migrations/*/migration.sql; do
+    psql "$DATABASE_URL" -q -v ON_ERROR_STOP=0 -f "$migration_sql" >/dev/null 2>&1 || true
+  done
+  schema_ready="$(cd "$PROJECT_DIR/backend" && node -e 'const {PrismaClient}=require("@prisma/client");const p=new PrismaClient();p.$queryRawUnsafe("SELECT 1 FROM information_schema.tables WHERE table_schema = '"'"'public'"'"' AND table_name = '"'"'users'"'"'").then((rows)=>{console.log(rows.length?"yes":"no")}).catch(()=>{console.log("no")}).finally(()=>p.$disconnect());' 2>/dev/null || echo no)"
+  if [ "$schema_ready" != "yes" ]; then
+    echo "Could not create the application schema in the DATABASE_URL database; run ./start.sh migrate with ALLOW_SCHEMA_MIGRATION=1 against a disposable database, or fix DATABASE_URL." >&2
+    exit 1
+  fi
+fi
+# On an empty database, seed the fixture data (which also creates the admin);
+# otherwise just ensure the admin exists. The seed refuses non-empty users.
+users_count="$(cd "$PROJECT_DIR/backend" && node -e 'const {PrismaClient}=require("@prisma/client");const p=new PrismaClient();p.user.count().then((n)=>{console.log(n)}).catch(()=>{console.log(-1)}).finally(()=>p.$disconnect());' 2>/dev/null || echo -1)"
+seeded="no"
+if [ "$users_count" = "0" ]; then
+  if (cd "$PROJECT_DIR/backend" && ALLOW_DISPOSABLE_SEED=YES node prisma/seed.js); then
+    seeded="yes"
+  else
+    echo "Fixture seed failed; falling back to admin provisioning only" >&2
+  fi
+fi
+if [ "$seeded" != "yes" ]; then
+  provision_output="$(cd "$PROJECT_DIR/backend" && BOOTSTRAP_ACKNOWLEDGEMENT=create-initial-admin node scripts/create-admin.js 2>&1)" && echo "$provision_output" || {
+    case "$provision_output" in *"already exists"*) echo "Administrator already exists; skipping provisioning" ;; *) echo "$provision_output" >&2; exit 1 ;; esac
+  }
+fi
 (cd "$PROJECT_DIR/frontend" && npm run build)
 CHILD_PIDS=()
-(cd "$PROJECT_DIR"&&exec node runtime/api.mjs)&CHILD_PIDS+=("$!")
+(cd "$PROJECT_DIR/backend"&&exec node src/index.js)&CHILD_PIDS+=("$!")
 (cd "$PROJECT_DIR/frontend"&&exec npm run preview -- --host 127.0.0.1 --port "$FRONTEND_PORT" --strictPort)&CHILD_PIDS+=("$!")
 kill_tree(){ local pid="$1" child;for child in $(pgrep -P "$pid" 2>/dev/null||true);do kill_tree "$child";done;kill -TERM "$pid" 2>/dev/null||true; }
 cleanup(){ trap - EXIT INT TERM;for pid in "${CHILD_PIDS[@]}";do kill_tree "$pid";done;for pid in "${CHILD_PIDS[@]}";do wait "$pid" 2>/dev/null||true;done; }

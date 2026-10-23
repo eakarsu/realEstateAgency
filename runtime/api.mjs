@@ -23,8 +23,11 @@ const server=http.createServer(async(req,res)=>{
   try{
     if(req.method==='GET'&&url.pathname==='/api/health')return json(res,200,{status:'ok',project});
     if(req.method==='GET'&&url.pathname==='/api/auth/demo-credentials'){
+      if(process.env.NODE_ENV==='production'||process.env.ENABLE_DEMO_CREDENTIAL_AUTOFILL!=='true')return json(res,404,{error:'Not found'});
+      const email=String(process.env.PROVISION_ADMIN_EMAIL||process.env.ADMIN_EMAIL||'');const password=String(process.env.PROVISION_ADMIN_PASSWORD||process.env.ADMIN_PASSWORD||'');
+      if(!email||!password)return json(res,503,{error:'Demo credentials are not configured'});
       res.setHeader('Cache-Control','no-store');
-      return json(res,200,{email:String(process.env.PROVISION_ADMIN_EMAIL||process.env.ADMIN_EMAIL||''),password:String(process.env.PROVISION_ADMIN_PASSWORD||process.env.ADMIN_PASSWORD||'')});
+      return json(res,200,{email,password});
     }
     if(req.method==='POST'&&url.pathname==='/api/auth/login'){
       const body=await readBody(req);const email=String(body.email||'').trim().toLowerCase();const password=String(body.password||'');
